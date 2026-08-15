@@ -1,8 +1,9 @@
 import { Button, Label, Select } from '@songara/pwa-base/ui'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PlayerLabel } from '../components/FplMedia'
 import { useFplData } from '../data/fplDataContext'
-import { gameweekEvents, latestPlayedRound, maxRound, meanPointsByRound } from '../data/queries'
+import { gameweekEvents, latestPlayedRound, maxRound, meanPointsSeries } from '../data/queries'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
 
 export function GameweekPage() {
@@ -14,11 +15,11 @@ export function GameweekPage() {
   const selected = round || latest || max || 1
 
   const events = useMemo(
-    () => (snapshot ? gameweekEvents(snapshot, selected).slice(0, 40) : []),
+    () => (snapshot ? gameweekEvents(snapshot, selected).slice(0, 80) : []),
     [snapshot, selected],
   )
   const trend = useMemo(
-    () => (snapshot ? meanPointsByRound(snapshot.performances) : []),
+    () => (snapshot ? meanPointsSeries(snapshot.performances) : []),
     [snapshot],
   )
 
@@ -55,8 +56,35 @@ export function GameweekPage() {
 
       <DataTable
         caption={`GW ${selected} returns (published points)`}
-        columns={['Who', 'Event', 'Decision note']}
-        rows={events.map((row) => [row.who, row.event, row.note])}
+        defaultSort={{ id: 'pts', direction: 'desc' }}
+        columns={[
+          {
+            id: 'who',
+            label: 'Who',
+            sortValue: (row) => row.who,
+            render: (row) => <PlayerLabel player={row.player} name={row.who} />,
+          },
+          {
+            id: 'event',
+            label: 'Event',
+            sortValue: (row) => row.event,
+            render: (row) => row.event,
+          },
+          {
+            id: 'pts',
+            label: 'Pts',
+            sortValue: (row) => row.points,
+            render: (row) => row.points,
+          },
+          {
+            id: 'note',
+            label: 'Decision note',
+            sortValue: (row) => row.minutes,
+            render: (row) => row.note,
+          },
+        ]}
+        rows={events}
+        rowKey={(row, index) => `${row.who}-${row.event}-${index}`}
         empty="No published appearances for this gameweek."
       />
       <FormSlot label="Mean points (players with minutes)" data={trend} />

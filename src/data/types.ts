@@ -36,6 +36,8 @@ export type FplPlayer = {
 export type FplTeam = {
   seasonId: string
   id: number
+  /** Premier League / FPL team code from vaastav `teams.csv` (`code` column). */
+  code: number
   name: string
   shortName: string
   strength: number

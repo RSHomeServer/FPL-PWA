@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { parseCsv, parseIntField } from './csv'
-import { dedupePerformances, gameweekFromRow, parsePerformanceRow, parsePlayerRow, positionFromElementType } from './parse'
+import {
+  dedupePerformances,
+  gameweekFromRow,
+  parsePerformanceRow,
+  parsePlayerRow,
+  parseTeamRow,
+  positionFromElementType,
+} from './parse'
 import { formatGbpFromTenths, poundsFromTenths } from './prices'
 
 describe('parseCsv', () => {
@@ -38,7 +45,30 @@ describe('IDs and positions', () => {
     expect(player?.id).toBe(1)
     expect(player?.position).toBe('GK')
     expect(player?.nowCostTenths).toBe(60)
+    expect(player?.code).toBe(154561)
     expect(positionFromElementType('MID')).toBe('MID')
+  })
+
+  it('parses team code from teams.csv when present', () => {
+    const team = parseTeamRow('2025-26', {
+      id: '1',
+      name: 'Arsenal',
+      short_name: 'ARS',
+      code: '3',
+      strength: '4',
+      strength_attack_home: '1350',
+      strength_attack_away: '1370',
+      strength_defence_home: '1330',
+      strength_defence_away: '1360',
+    })
+    expect(team?.id).toBe(1)
+    expect(team?.code).toBe(3)
+    expect(team?.shortName).toBe('ARS')
+  })
+
+  it('defaults missing team code to 0', () => {
+    const team = parseTeamRow('2016-17', { id: '2', name: 'Bournemouth', short_name: 'BOU' })
+    expect(team?.code).toBe(0)
   })
 
   it('rejects rows without a player id', () => {

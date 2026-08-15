@@ -72,6 +72,7 @@ export function parseTeamRow(seasonId: string, row: Record<string, string>): Fpl
   return {
     seasonId,
     id,
+    code: parseIntField(row.code),
     name: row.name?.trim() || `Team ${id}`,
     shortName: row.short_name?.trim() || String(id),
     strength: parseIntField(row.strength),

@@ -1,8 +1,10 @@
 import { Button, Label, Select } from '@songara/pwa-base/ui'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { TeamLabel } from '../components/FplMedia'
 import { useFplData } from '../data/fplDataContext'
-import { formatKickoff, latestPlayedRound, maxRound, teamById, teamName } from '../data/queries'
+import { formatKickoff, latestPlayedRound, maxRound, teamById } from '../data/queries'
+import type { FplFixture } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
 
 export function FixturesPage() {
@@ -54,15 +56,38 @@ export function FixturesPage() {
 
       <DataTable
         caption={`Fixture grid${selected ? ` · GW ${selected}` : ''}`}
-        columns={['Kick-off', 'Home', 'Away', 'Notes']}
-        rows={rows.map((fixture) => [
-          formatKickoff(fixture.kickoffTime),
-          teamName(teams, fixture.teamH),
-          teamName(teams, fixture.teamA),
-          fixture.finished
-            ? `${fixture.teamHScore ?? '—'}–${fixture.teamAScore ?? '—'}`
-            : `FDR ${fixture.teamHDifficulty ?? '—'} / ${fixture.teamADifficulty ?? '—'}`,
-        ])}
+        defaultSort={{ id: 'kickoff', direction: 'asc' }}
+        columns={[
+          {
+            id: 'kickoff',
+            label: 'Kick-off',
+            sortValue: (fixture) => fixture.kickoffTime,
+            render: (fixture) => formatKickoff(fixture.kickoffTime),
+          },
+          {
+            id: 'home',
+            label: 'Home',
+            sortValue: (fixture) => teams.get(fixture.teamH)?.shortName ?? String(fixture.teamH),
+            render: (fixture) => <TeamLabel team={teams.get(fixture.teamH)} />,
+          },
+          {
+            id: 'away',
+            label: 'Away',
+            sortValue: (fixture) => teams.get(fixture.teamA)?.shortName ?? String(fixture.teamA),
+            render: (fixture) => <TeamLabel team={teams.get(fixture.teamA)} />,
+          },
+          {
+            id: 'notes',
+            label: 'Notes',
+            sortValue: (fixture) => (fixture.finished ? 1 : 0),
+            render: (fixture) =>
+              fixture.finished
+                ? `${fixture.teamHScore ?? '—'}–${fixture.teamAScore ?? '—'}`
+                : `FDR ${fixture.teamHDifficulty ?? '—'} / ${fixture.teamADifficulty ?? '—'}`,
+          },
+        ]}
+        rows={rows}
+        rowKey={(fixture: FplFixture) => fixture.id}
         empty="No published fixtures for this gameweek."
       />
     </ExplorerScreen>

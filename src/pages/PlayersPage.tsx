@@ -1,9 +1,11 @@
 import { Label, TextField } from '@songara/pwa-base/ui'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { useFplData } from '../data/fplDataContext'
 import { playerDisplayName } from '../data/parse'
-import { formSparkline, playerPriceLabel, teamById, teamName } from '../data/queries'
+import { formSeries, playerPriceLabel, teamById } from '../data/queries'
+import type { FplPlayer } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
 
 export function PlayersPage() {
@@ -13,7 +15,7 @@ export function PlayersPage() {
   const teams = useMemo(() => teamById(snapshot?.teams ?? []), [snapshot])
 
   const players = useMemo(() => {
-    const list = [...(snapshot?.players ?? [])].sort((a, b) => b.totalPoints - a.totalPoints)
+    const list = [...(snapshot?.players ?? [])]
     const needle = query.trim().toLowerCase()
     if (!needle) return list
     return list.filter((player) => {
@@ -23,7 +25,7 @@ export function PlayersPage() {
   }, [query, snapshot])
 
   const selected = players.find((player) => player.id === selectedId) ?? players[0]
-  const spark = snapshot && selected ? formSparkline(snapshot.performances, selected.id) : []
+  const spark = snapshot && selected ? formSeries(snapshot.performances, selected.id) : []
 
   return (
     <ExplorerScreen
@@ -49,21 +51,55 @@ export function PlayersPage() {
 
       <DataTable
         caption="Players by season points"
-        columns={['Player', 'Pos', 'Team', 'Price', 'Pts', 'Mins']}
-        rows={players.slice(0, 80).map((player) => [
-          <button
-            type="button"
-            className="fpl-explorer__row-link"
-            onClick={() => setSelectedId(player.id)}
-          >
-            {playerDisplayName(player)}
-          </button>,
-          player.position,
-          teamName(teams, player.teamId),
-          playerPriceLabel(player),
-          player.totalPoints,
-          player.minutes,
-        ])}
+        defaultSort={{ id: 'pts', direction: 'desc' }}
+        columns={[
+          {
+            id: 'player',
+            label: 'Player',
+            sortValue: (player) => playerDisplayName(player),
+            render: (player) => (
+              <button
+                type="button"
+                className="fpl-explorer__row-link"
+                onClick={() => setSelectedId(player.id)}
+              >
+                <PlayerLabel player={player} />
+              </button>
+            ),
+          },
+          {
+            id: 'pos',
+            label: 'Pos',
+            sortValue: (player) => player.position,
+            render: (player) => player.position,
+          },
+          {
+            id: 'team',
+            label: 'Team',
+            sortValue: (player) => teams.get(player.teamId)?.shortName ?? String(player.teamId),
+            render: (player) => <TeamLabel team={teams.get(player.teamId)} />,
+          },
+          {
+            id: 'price',
+            label: 'Price',
+            sortValue: (player) => player.nowCostTenths,
+            render: (player) => playerPriceLabel(player),
+          },
+          {
+            id: 'pts',
+            label: 'Pts',
+            sortValue: (player) => player.totalPoints,
+            render: (player) => player.totalPoints,
+          },
+          {
+            id: 'mins',
+            label: 'Mins',
+            sortValue: (player) => player.minutes,
+            render: (player) => player.minutes,
+          },
+        ]}
+        rows={players}
+        rowKey={(player: FplPlayer) => player.id}
         empty="No published players match this filter."
       />
       {selected ? (

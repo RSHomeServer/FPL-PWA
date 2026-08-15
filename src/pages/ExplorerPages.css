@@ -168,8 +168,95 @@
   color: color-mix(in srgb, var(--color-foreground) 68%, transparent);
 }
 
+.fpl-explorer__sort {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.fpl-explorer__sort:focus-visible {
+  outline: 2px solid var(--fpl-lime);
+  outline-offset: 2px;
+}
+
+.fpl-explorer__sort-indicator {
+  font-size: 0.7em;
+  opacity: 0.7;
+}
+
+.fpl-explorer__labelled-chart {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.fpl-explorer__axis {
+  stroke: color-mix(in srgb, var(--fpl-lime) 45%, transparent);
+  stroke-width: 1;
+}
+
+.fpl-explorer__tick,
+.fpl-explorer__axis-label {
+  fill: color-mix(in srgb, var(--color-foreground) 72%, transparent);
+  font-size: 11px;
+  font-family: var(--font-family-sans, "Source Sans 3", sans-serif);
+}
+
+.fpl-media-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.fpl-media {
+  flex: none;
+  display: inline-block;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fpl-ink) 70%, transparent);
+  vertical-align: middle;
+}
+
+.fpl-media--crest {
+  border-radius: 0.2rem;
+  object-fit: contain;
+  background: color-mix(in srgb, #fff 8%, transparent);
+}
+
+.fpl-media--fallback,
+.fpl-media--crest-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fpl-lime);
+  border: 1px solid color-mix(in srgb, var(--fpl-lime) 35%, transparent);
+}
+
+.fpl-media--crest-fallback {
+  border-radius: 0.2rem;
+  padding: 0.1rem 0.25rem;
+  height: 1.25rem;
+}
+
 .fpl-explorer__row-link {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
   border: 0;
   padding: 0;
   background: transparent;

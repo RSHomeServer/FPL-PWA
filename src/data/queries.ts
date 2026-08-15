@@ -1,4 +1,4 @@
-import { playerDisplayName, pointsByRound } from './parse'
+import { playerDisplayName } from './parse'
 import { formatGbpFromTenths } from './prices'
 import type { FplFixture, FplPerformance, FplPlayer, FplTeam, SeasonSnapshot } from './types'
 
@@ -23,13 +23,36 @@ export function performancesForPlayer(
     .sort((a, b) => a.round - b.round || a.fixture - b.fixture)
 }
 
+export type SeriesPoint = {
+  x: number
+  y: number
+  label?: string
+}
+
+export function formSeries(
+  rows: readonly FplPerformance[],
+  playerId: number,
+  lastN = 8,
+): SeriesPoint[] {
+  const appearances = performancesForPlayer(rows, playerId)
+  const totals = new Map<number, number>()
+  for (const row of appearances) {
+    totals.set(row.round, (totals.get(row.round) ?? 0) + row.totalPoints)
+  }
+  const rounds = [...totals.keys()].sort((a, b) => a - b).slice(-lastN)
+  return rounds.map((round) => ({
+    x: round,
+    y: totals.get(round) ?? 0,
+    label: `GW ${round}`,
+  }))
+}
+
 export function formSparkline(
   rows: readonly FplPerformance[],
   playerId: number,
   lastN = 8,
 ): number[] {
-  const series = pointsByRound(performancesForPlayer(rows, playerId))
-  return series.slice(-lastN)
+  return formSeries(rows, playerId, lastN).map((point) => point.y)
 }
 
 export function maxRound(rows: readonly FplPerformance[], fixtures: readonly FplFixture[]): number {
@@ -53,10 +76,12 @@ export function gameweekEvents(
   snapshot: SeasonSnapshot,
   round: number,
 ): {
+  player: FplPlayer | undefined
   who: string
   event: string
   note: string
   points: number
+  minutes: number
 }[] {
   const names = playerById(snapshot.players)
   const teams = teamById(snapshot.teams)
@@ -70,12 +95,12 @@ export function gameweekEvents(
       if (returns > 0) event = `${row.goalsScored}G ${row.assists}A · ${row.totalPoints} pts`
       else if (row.minutes === 0) event = 'Blank'
       const note = `${row.minutes} min · ${row.wasHome ? 'H' : 'A'} vs ${teamName(teams, row.opponentTeamId)}`
-      return { who, event, note, points: row.totalPoints }
+      return { player, who, event, note, points: row.totalPoints, minutes: row.minutes }
     })
     .sort((a, b) => b.points - a.points)
 }
 
-export function meanPointsByRound(rows: readonly FplPerformance[]): number[] {
+export function meanPointsSeries(rows: readonly FplPerformance[]): SeriesPoint[] {
   const sums = new Map<number, { total: number; count: number }>()
   for (const row of rows) {
     if (row.minutes <= 0) continue
@@ -87,9 +112,13 @@ export function meanPointsByRound(rows: readonly FplPerformance[]): number[] {
   const rounds = [...sums.keys()].sort((a, b) => a - b)
   return rounds.map((round) => {
     const bucket = sums.get(round)
-    if (!bucket || bucket.count === 0) return 0
-    return bucket.total / bucket.count
+    const y = !bucket || bucket.count === 0 ? 0 : bucket.total / bucket.count
+    return { x: round, y, label: `GW ${round}` }
   })
+}
+
+export function meanPointsByRound(rows: readonly FplPerformance[]): number[] {
+  return meanPointsSeries(rows).map((point) => point.y)
 }
 
 export function playerPriceLabel(player: FplPlayer): string {

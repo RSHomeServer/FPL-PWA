@@ -1,15 +1,16 @@
 import { Button } from '@songara/pwa-base/ui'
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { useFplData } from '../data/fplDataContext'
 import { playerDisplayName } from '../data/parse'
 import {
-  formSparkline,
+  formSeries,
   performancesForPlayer,
   playerPriceLabel,
   teamById,
-  teamName,
 } from '../data/queries'
+import type { FplPerformance } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
 
 export function PlayerDetailPage() {
@@ -23,8 +24,9 @@ export function PlayerDetailPage() {
     ? performancesForPlayer(snapshot.performances, playerId)
     : []
   const spark = snapshot && Number.isFinite(playerId)
-    ? formSparkline(snapshot.performances, playerId)
+    ? formSeries(snapshot.performances, playerId)
     : []
+  const club = player ? teams.get(player.teamId) : undefined
 
   return (
     <ExplorerScreen
@@ -45,23 +47,43 @@ export function PlayerDetailPage() {
       ) : null}
 
       {player ? (
-        <p className="fpl-explorer__meta">
-          {player.position} · {teamName(teams, player.teamId)} · {playerPriceLabel(player)} ·{' '}
-          {player.totalPoints} pts · {player.minutes} min
+        <p className="fpl-explorer__meta fpl-media-row">
+          <PlayerLabel player={player} size={56} />
+          <span>
+            {player.position} · <TeamLabel team={club} /> · {playerPriceLabel(player)} ·{' '}
+            {player.totalPoints} pts · {player.minutes} min
+          </span>
         </p>
       ) : null}
 
       <DataTable
         caption="Recent appearances"
-        columns={['Gameweek', 'Minutes', 'Returns']}
-        rows={appearances.map((row) => [
-          `GW ${row.round}`,
-          row.minutes,
-          `${row.goalsScored}G ${row.assists}A · ${row.totalPoints} pts`,
-        ])}
+        defaultSort={{ id: 'gw', direction: 'asc' }}
+        columns={[
+          {
+            id: 'gw',
+            label: 'Gameweek',
+            sortValue: (row) => row.round,
+            render: (row) => `GW ${row.round}`,
+          },
+          {
+            id: 'mins',
+            label: 'Minutes',
+            sortValue: (row) => row.minutes,
+            render: (row) => row.minutes,
+          },
+          {
+            id: 'returns',
+            label: 'Returns',
+            sortValue: (row) => row.totalPoints,
+            render: (row) => `${row.goalsScored}G ${row.assists}A · ${row.totalPoints} pts`,
+          },
+        ]}
+        rows={appearances}
+        rowKey={(row: FplPerformance) => `${row.round}-${row.fixture}`}
         empty="No published gameweek rows for this player."
       />
-      <FormSlot label="Form sparkline" data={spark} />
+      <FormSlot label="Form by gameweek" data={spark} />
     </ExplorerScreen>
   )
 }
