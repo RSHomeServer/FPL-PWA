@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "PLATFORM_RUNTIME_MODE=production tsc -b && PLATFORM_RUNTIME_MODE=production vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --host 127.0.0.1 --port 5304"
   },
   "dependencies": {
+    "@songara/pwa-base": "file:../PWA-Base",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "@songara/pwa-base": "file:../PWA-Base"
+    "react-router-dom": "^7.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -26,6 +27,7 @@
     "globals": "^17.7.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.65.0",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

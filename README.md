@@ -1,75 +1,38 @@
-# React + TypeScript + Vite
+# FPL PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Installable progressive web app for **weekly Fantasy Premier League decision support**.
+This repository currently ships the product **shell**: shared Songara chrome, theme, and
+PWA install infrastructure. Explorer screens and FPL data land in later work.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Vite serves on **port 5303** (`strictPort`). On this host the app is available at
+[http://fpl.dev.songara.uk](http://fpl.dev.songara.uk) (Caddy → `localhost:5303`).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm run build    # production bundle
+npm run preview  # serve the production build
+npm run lint
 ```
+
+The user unit `~/.config/systemd/user/fpl-pwa.service` runs `npm run dev` from the
+primary checkout (`~/projects/FPL-PWA`). Restart it after switching that checkout to a
+branch you want to verify:
+
+```bash
+systemctl --user restart fpl-pwa.service
+```
+
+## Foundation
+
+`@songara/pwa-base` is a sibling `file:../PWA-Base` dependency. Isolated KanDev
+worktrees should run the sibling linker before install — see
+[consuming-pwa-base.md](../PWA-Base/docs/guides/consuming-pwa-base.md).
+
+Workflow and role prompts: [`.kandev/`](./.kandev/). How to contribute:
+[`CONTRIBUTING.md`](./CONTRIBUTING.md).
