@@ -1,8 +1,9 @@
 # FPL PWA
 
 Installable progressive web app for **weekly Fantasy Premier League decision support**.
-This repository currently ships the product **shell**: shared Songara chrome, theme, and
-PWA install infrastructure. Explorer screens and FPL data land in later work.
+This repository currently ships the product **shell** plus **empty explorer
+routes** (gameweek, players, compare, fixtures, teams). Live FPL numbers land
+in a later data ticket — screens show placeholders, not invented stats.
 
 ## Run locally
 
