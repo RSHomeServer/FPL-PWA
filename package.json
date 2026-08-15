@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "PLATFORM_RUNTIME_MODE=production tsc -b && PLATFORM_RUNTIME_MODE=production vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1 --port 5304"
   },
   "dependencies": {
     "@songara/pwa-base": "file:../PWA-Base",
+    "dexie": "^4.4.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.6.0"
@@ -28,6 +30,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.2.0",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.0.18"
   }
 }

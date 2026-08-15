@@ -1,13 +1,25 @@
-import { Button } from '@songara/pwa-base/ui'
+import { Button, Label, Select } from '@songara/pwa-base/ui'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  EmptyTable,
-  ExplorerEmpty,
-  ExplorerScreen,
-} from './ExplorerScreen'
+import { useFplData } from '../data/fplDataContext'
+import { formatKickoff, latestPlayedRound, maxRound, teamById, teamName } from '../data/queries'
+import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
 
 export function FixturesPage() {
   const navigate = useNavigate()
+  const { snapshot, status } = useFplData()
+  const max = snapshot ? maxRound(snapshot.performances, snapshot.fixtures) : 0
+  const latest = snapshot ? latestPlayedRound(snapshot.performances) : 0
+  const [round, setRound] = useState(0)
+  const selected = round || Math.min(max, (latest || 0) + 1) || max
+  const teams = useMemo(() => teamById(snapshot?.teams ?? []), [snapshot])
+
+  const rows = useMemo(() => {
+    if (!snapshot) return []
+    return snapshot.fixtures
+      .filter((fixture) => (selected ? fixture.event === selected : true))
+      .sort((a, b) => a.kickoffTime.localeCompare(b.kickoffTime))
+  }, [selected, snapshot])
 
   return (
     <ExplorerScreen
@@ -15,21 +27,43 @@ export function FixturesPage() {
       title="Upcoming fixtures"
       question="Which fixtures make a player or team more (or less) attractive this week?"
     >
-      <ExplorerEmpty
-        title="No fixture list yet"
-        description="Upcoming matches will land with published data. Difficulty and kick-off times are not guessed here."
-        action={
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/teams', { viewTransition: true })}
-          >
-            Team comparison
-          </Button>
-        }
-      />
-      <EmptyTable
-        caption="Fixture grid (placeholder)"
+      {max > 0 ? (
+        <Label className="fpl-explorer__field">
+          Gameweek
+          <Select value={String(selected)} onChange={(event) => setRound(Number(event.target.value))}>
+            {Array.from({ length: max }, (_, index) => index + 1).map((gw) => (
+              <option key={gw} value={gw}>
+                GW {gw}
+              </option>
+            ))}
+          </Select>
+        </Label>
+      ) : null}
+
+      {status !== 'loading' && (!snapshot || snapshot.fixtures.length === 0) ? (
+        <ExplorerEmpty
+          title="No fixture list in this snapshot"
+          description="This season folder has no fixtures.csv on the CDN. Older campaigns only have gameweek files."
+          action={
+            <Button variant="secondary" onClick={() => navigate('/teams', { viewTransition: true })}>
+              Team comparison
+            </Button>
+          }
+        />
+      ) : null}
+
+      <DataTable
+        caption={`Fixture grid${selected ? ` · GW ${selected}` : ''}`}
         columns={['Kick-off', 'Home', 'Away', 'Notes']}
+        rows={rows.map((fixture) => [
+          formatKickoff(fixture.kickoffTime),
+          teamName(teams, fixture.teamH),
+          teamName(teams, fixture.teamA),
+          fixture.finished
+            ? `${fixture.teamHScore ?? '—'}–${fixture.teamAScore ?? '—'}`
+            : `FDR ${fixture.teamHDifficulty ?? '—'} / ${fixture.teamADifficulty ?? '—'}`,
+        ])}
+        empty="No published fixtures for this gameweek."
       />
     </ExplorerScreen>
   )

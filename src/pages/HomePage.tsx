@@ -13,7 +13,7 @@ const EXPLORERS = [
 
 /**
  * Product home for the installable FPL shell.
- * Live numbers belong to a later data ticket.
+ * Live numbers come from the vaastav data layer on explorer routes.
  */
 export function HomePage() {
   const navigate = useNavigate()
@@ -36,8 +36,9 @@ export function HomePage() {
           captain, keep versus sell — with the reasoning, not only the ranks.
         </p>
         <p className="fpl-home__note">
-          Explorers are in place with empty states. Published gameweek data
-          arrives in a later ticket — nothing here is invented stats.
+          Explorers load published history from the vaastav dataset (via CDN).
+          Switch season on any explorer; refresh pulls new gameweeks after they
+          are published. Nothing here is invented stats.
         </p>
         <div className="fpl-home__cta">
           <Stack direction="row" gap="sm">

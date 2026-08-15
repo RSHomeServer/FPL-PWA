@@ -1,9 +1,10 @@
 # FPL PWA
 
 Installable progressive web app for **weekly Fantasy Premier League decision support**.
-This repository currently ships the product **shell** plus **empty explorer
-routes** (gameweek, players, compare, fixtures, teams). Live FPL numbers land
-in a later data ticket — screens show placeholders, not invented stats.
+The product **shell** and **explorer routes** load **published** history from
+[vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)
+via jsDelivr (not a git submodule). Dexie caches seasons locally; use **Refresh**
+on an explorer to pull new gameweeks after they are published.
 
 ## Run locally
 
@@ -19,6 +20,7 @@ Vite serves on **port 5303** (`strictPort`). On this host the app is available a
 npm run build    # production bundle
 npm run preview  # serve the production build
 npm run lint
+npm test
 ```
 
 The user unit `~/.config/systemd/user/fpl-pwa.service` runs `npm run dev` from the
