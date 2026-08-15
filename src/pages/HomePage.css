@@ -29,20 +29,15 @@
   background:
     radial-gradient(
       50% 40% at 20% 25%,
-      color-mix(in srgb, var(--fpl-lime) 22%, transparent),
+      color-mix(in srgb, var(--fpl-lime) 18%, transparent),
       transparent 70%
     ),
     radial-gradient(
       60% 50% at 85% 80%,
-      color-mix(in srgb, var(--fpl-grass) 45%, transparent),
+      color-mix(in srgb, var(--fpl-grass) 28%, transparent),
       transparent 70%
     ),
-    repeating-linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--fpl-pitch) 80%, #0d2818) 0 4.5rem,
-      color-mix(in srgb, var(--fpl-grass) 55%, var(--fpl-pitch)) 4.5rem 9rem
-    );
-  opacity: 0.55;
+    linear-gradient(180deg, var(--fpl-pitch) 0%, var(--fpl-ink) 100%);
 }
 
 .fpl-home__hero {
@@ -110,7 +105,7 @@
   padding: var(--space-3) var(--space-4);
   border: 1px solid color-mix(in srgb, var(--fpl-lime) 28%, transparent);
   border-radius: var(--radius-md, 0.375rem);
-  background: color-mix(in srgb, var(--fpl-ink) 45%, transparent);
+  background: var(--fpl-ink);
   color: inherit;
   font: inherit;
   text-align: left;
