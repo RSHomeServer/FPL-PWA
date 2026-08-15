@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseCsv, parseIntField } from './csv'
-import { gameweekFromRow, parsePerformanceRow, parsePlayerRow, positionFromElementType } from './parse'
+import { dedupePerformances, gameweekFromRow, parsePerformanceRow, parsePlayerRow, positionFromElementType } from './parse'
 import { formatGbpFromTenths, poundsFromTenths } from './prices'
 
 describe('parseCsv', () => {
@@ -80,5 +80,30 @@ describe('parseIntField', () => {
   it('treats None as missing', () => {
     expect(parseIntField('None', 0)).toBe(0)
     expect(parseIntField('12')).toBe(12)
+  })
+})
+
+describe('dedupePerformances', () => {
+  it('keeps one row per player/round/fixture', () => {
+    const base = {
+      seasonId: '2025-26',
+      playerId: 1,
+      round: 1,
+      fixture: 10,
+      totalPoints: 2,
+      goalsScored: 0,
+      assists: 0,
+      wasHome: true,
+      opponentTeamId: 2,
+      valueTenths: 50,
+      kickoffTime: '',
+      teamName: 'Arsenal',
+    }
+    const rows = dedupePerformances([
+      { ...base, minutes: 45 },
+      { ...base, minutes: 90, totalPoints: 6 },
+    ])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.minutes).toBe(90)
   })
 })

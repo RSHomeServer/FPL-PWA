@@ -11,6 +11,7 @@ import {
 } from './cdn'
 import { getFplCacheDb } from './db'
 import {
+  dedupePerformances,
   parseFixtureRow,
   parsePerformanceRow,
   parsePlayerRow,
@@ -107,9 +108,11 @@ async function ingestSeason(
     : []
 
   const performances = gwFile.ok
-    ? parseCsv(gwFile.text)
-        .map((row) => parsePerformanceRow(seasonId, row))
-        .filter((row): row is FplPerformance => row !== null)
+    ? dedupePerformances(
+        parseCsv(gwFile.text)
+          .map((row) => parsePerformanceRow(seasonId, row))
+          .filter((row): row is FplPerformance => row !== null),
+      )
     : []
 
   const derivedTeams =
@@ -148,10 +151,10 @@ async function ingestSeason(
         cache.performances.where('seasonId').equals(seasonId).delete(),
       ])
       await cache.seasons.put(meta)
-      if (players.length) await cache.players.bulkAdd(players)
-      if (derivedTeams.length) await cache.teams.bulkAdd(derivedTeams)
-      if (fixtures.length) await cache.fixtures.bulkAdd(fixtures)
-      if (performances.length) await cache.performances.bulkAdd(performances)
+      if (players.length) await cache.players.bulkPut(players)
+      if (derivedTeams.length) await cache.teams.bulkPut(derivedTeams)
+      if (fixtures.length) await cache.fixtures.bulkPut(fixtures)
+      if (performances.length) await cache.performances.bulkPut(performances)
     },
   )
 

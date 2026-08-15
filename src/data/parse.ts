@@ -124,6 +124,21 @@ export function parsePerformanceRow(
   }
 }
 
+export function performanceKey(row: Pick<FplPerformance, 'seasonId' | 'playerId' | 'round' | 'fixture'>): string {
+  return `${row.seasonId}|${row.playerId}|${row.round}|${row.fixture}`
+}
+
+/** merged_gw can repeat the same element/round/fixture; keep the richer minutes row. */
+export function dedupePerformances(rows: readonly FplPerformance[]): FplPerformance[] {
+  const map = new Map<string, FplPerformance>()
+  for (const row of rows) {
+    const key = performanceKey(row)
+    const prev = map.get(key)
+    if (!prev || row.minutes > prev.minutes) map.set(key, row)
+  }
+  return [...map.values()]
+}
+
 export function pointsByRound(rows: readonly FplPerformance[]): number[] {
   const totals = new Map<number, number>()
   for (const row of rows) {
