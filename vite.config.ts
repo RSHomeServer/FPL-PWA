@@ -41,6 +41,13 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webmanifest}'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.hostname === 'cdn.jsdelivr.net' || url.hostname === 'api.github.com',
+            handler: 'NetworkOnly',
+          },
+        ],
       },
       // Keep Vite HMR clean on fpl.dev.songara.uk — SW only in build/preview.
       devOptions: {

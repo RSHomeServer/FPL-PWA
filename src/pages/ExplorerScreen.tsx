@@ -1,6 +1,7 @@
 import { EmptyState, Sparkline, Stack } from '@songara/pwa-base/ui'
 import type { ReactNode } from 'react'
 import { ExplorerNav } from '../components/ExplorerNav'
+import { SeasonBar } from '../components/SeasonBar'
 import './ExplorerPages.css'
 
 type ExplorerScreenProps = {
@@ -26,6 +27,7 @@ export function ExplorerScreen({
             <h1 className="fpl-explorer__title">{title}</h1>
             <p className="fpl-explorer__question">{question}</p>
           </header>
+          <SeasonBar />
           {children}
         </Stack>
       </div>
@@ -52,12 +54,16 @@ export function ExplorerEmpty({
   )
 }
 
-export function EmptyTable({
+export function DataTable({
   caption,
   columns,
+  rows,
+  empty,
 }: {
   caption: string
   columns: readonly string[]
+  rows: readonly ReactNode[][]
+  empty: string
 }) {
   return (
     <div className="fpl-explorer__table-wrap">
@@ -73,24 +79,44 @@ export function EmptyTable({
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td colSpan={columns.length}>
-              No rows yet — season data arrives in a later ticket.
-            </td>
-          </tr>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length}>{empty}</td>
+            </tr>
+          ) : (
+            rows.map((row, index) => (
+              <tr key={index}>
+                {row.map((cell, cellIndex) => (
+                  <td key={cellIndex}>{cell}</td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>
   )
 }
 
-export function FormSlot({ label }: { label: string }) {
+export function FormSlot({
+  label,
+  data,
+  note,
+}: {
+  label: string
+  data: readonly number[]
+  note?: string
+}) {
+  const series = [...data]
   return (
     <figure className="fpl-explorer__chart">
       <figcaption>{label}</figcaption>
-      <Sparkline data={[]} label={label} />
+      <Sparkline data={series} label={label} color="var(--fpl-lime)" />
       <p className="fpl-explorer__chart-note">
-        Sparkline is empty until form samples are loaded. No invented points.
+        {note ??
+          (series.length === 0
+            ? 'Sparkline stays empty until published gameweek points exist for this selection.'
+            : `${series.length} published gameweek samples.`)}
       </p>
     </figure>
   )

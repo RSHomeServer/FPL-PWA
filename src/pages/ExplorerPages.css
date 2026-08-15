@@ -14,6 +14,7 @@
   display: flex;
   flex-direction: column;
   color: var(--color-foreground);
+  color-scheme: dark;
   background:
     radial-gradient(
       60% 40% at 10% 0%,
@@ -25,7 +26,7 @@
 
 .fpl-explorer__body {
   flex: 1;
-  width: min(100%, 48rem);
+  width: min(100%, 56rem);
   margin-inline: auto;
   padding:
     var(--space-6, 1.5rem)
@@ -66,7 +67,8 @@
 }
 
 .fpl-explorer__table-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(32rem, 70vh);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 0.375rem);
   background: color-mix(in srgb, var(--fpl-ink) 40%, transparent);
@@ -130,4 +132,55 @@
   display: grid;
   gap: var(--space-4, 1rem);
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.fpl-explorer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 0.75rem);
+  align-items: end;
+}
+
+.fpl-explorer__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+  min-width: min(100%, 12rem);
+  color: var(--color-foreground);
+}
+
+.fpl-explorer__field :is(select, input) {
+  color: var(--color-foreground);
+  background-color: var(--fpl-ink);
+  border-color: var(--color-border);
+  color-scheme: dark;
+}
+
+.fpl-explorer__field option {
+  color: var(--color-foreground);
+  background-color: var(--fpl-ink);
+}
+
+.fpl-explorer__meta {
+  margin: 0;
+  flex: 1 1 12rem;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: color-mix(in srgb, var(--color-foreground) 68%, transparent);
+}
+
+.fpl-explorer__row-link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--fpl-lime);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fpl-explorer__chart svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
 }

@@ -238,9 +238,15 @@ KanDev worktrees are not what the human’s website usually serves. After valida
    and preflight output in this task’s chat. Do **not** retry alternate credential
    sources (see bans below). On PASS: draft the PR body, then continue.
 3. Then: push the **feature branch** → open or update the **pull request** into `main`
-   (still with `$KANDEV_GITHUB_CLI_SHIM_DIR` first on `PATH`).
-4. **Do not** merge, approve, or push to `main`.
-5. Fill the completion table (branch + PR URL) and `step_complete_kandev`.
+   (still with `$KANDEV_GITHUB_CLI_SHIM_DIR` first on `PATH`). Create the PR with an
+   explicit `--body` HEREDOC only — never an empty body or an editor that can append a
+   footer.
+4. **PR branding scrub (mandatory):** immediately after `gh pr create`, run
+   `gh pr view --json body,title` and strip any editor “Made with” / “Generated with”
+   / Cursor footer (or equivalent tooling attribution) via `gh pr edit` before hand-off.
+   Repeat `gh pr view` until title and body are clean. A dirty PR body is not done.
+5. **Do not** merge, approve, or push to `main`.
+6. Fill the completion table (branch + PR URL) and `step_complete_kandev`.
 
 Full symptoms → check → escalate table:
 [GitHub CLI on KanDev executors](../README.md#github-cli-on-kandev-executors)
