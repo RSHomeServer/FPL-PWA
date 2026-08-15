@@ -216,8 +216,8 @@ export function FormSlot({
       <p className="fpl-explorer__chart-note">
         {note ??
           (series.length === 0
-            ? 'Chart stays empty until published gameweek points exist for this selection.'
-            : `${summary} · ${series.length} published gameweek samples.`)}
+            ? 'Chart stays empty until published values exist for this selection.'
+            : `${summary} · ${series.length} ${xAxisLabel === 'Gameweek' ? 'published gameweek samples' : 'samples'}.`)}
       </p>
     </figure>
   )
