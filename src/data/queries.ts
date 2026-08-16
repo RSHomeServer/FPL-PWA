@@ -1,5 +1,14 @@
 import { playerDisplayName } from './parse'
 import { formatGbpFromTenths } from './prices'
+import {
+  cleanSheetApplicable,
+  concededApplicable,
+  defensiveContributionApplicable,
+  formatEvent,
+  formatMetric,
+  savesApplicable,
+  scoreParts,
+} from './scoring'
 import type { FplFixture, FplPerformance, FplPlayer, FplTeam, SeasonSnapshot } from './types'
 
 export function teamById(teams: readonly FplTeam[]): Map<number, FplTeam> {
@@ -77,11 +86,24 @@ export function gameweekEvents(
   round: number,
 ): {
   player: FplPlayer | undefined
+  team: FplTeam | undefined
+  opponent: FplTeam | undefined
   who: string
+  position: FplPlayer['position']
   event: string
-  note: string
   points: number
   minutes: number
+  goals: number
+  assists: number
+  cleanSheet: string
+  saves: string
+  bonus: number
+  goalsConceded: string
+  expectedInvolvement: string
+  expectedPoints: string
+  defensiveContribution: string
+  bps: number
+  wasHome: boolean
 }[] {
   const names = playerById(snapshot.players)
   const teams = teamById(snapshot.teams)
@@ -89,13 +111,34 @@ export function gameweekEvents(
     .filter((row) => row.round === round && (row.minutes > 0 || row.totalPoints !== 0))
     .map((row) => {
       const player = names.get(row.playerId)
+      const position = player?.position && player.position !== 'UNK' ? player.position : row.gwPosition
       const who = player ? playerDisplayName(player) : `Player ${row.playerId}`
-      const returns = row.goalsScored + row.assists
-      let event = `${row.totalPoints} pts`
-      if (returns > 0) event = `${row.goalsScored}G ${row.assists}A · ${row.totalPoints} pts`
-      else if (row.minutes === 0) event = 'Blank'
-      const note = `${row.minutes} min · ${row.wasHome ? 'H' : 'A'} vs ${teamName(teams, row.opponentTeamId)}`
-      return { player, who, event, note, points: row.totalPoints, minutes: row.minutes }
+      const team = player ? teams.get(player.teamId) : undefined
+      const opponent = teams.get(row.opponentTeamId)
+      return {
+        player,
+        team,
+        opponent,
+        who,
+        position,
+        event: formatEvent(scoreParts(row, position)),
+        points: row.totalPoints,
+        minutes: row.minutes,
+        goals: row.goalsScored,
+        assists: row.assists,
+        cleanSheet: formatMetric(row.cleanSheets, cleanSheetApplicable(position)),
+        saves: formatMetric(row.saves, savesApplicable(position)),
+        bonus: row.bonus,
+        goalsConceded: formatMetric(row.goalsConceded, concededApplicable(position)),
+        expectedInvolvement: row.expectedGoalInvolvements.toFixed(2),
+        expectedPoints: row.expectedPoints == null ? 'NA' : row.expectedPoints.toFixed(1),
+        defensiveContribution: formatMetric(
+          row.defensiveContribution,
+          defensiveContributionApplicable(position, row.defensiveContribution),
+        ),
+        bps: row.bps,
+        wasHome: row.wasHome,
+      }
     })
     .sort((a, b) => b.points - a.points)
 }

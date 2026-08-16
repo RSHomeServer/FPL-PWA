@@ -1,10 +1,17 @@
 import { Button, Label, Select } from '@songara/pwa-base/ui'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PlayerLabel } from '../components/FplMedia'
+import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { useFplData } from '../data/fplDataContext'
 import { gameweekEvents, latestPlayedRound, maxRound, meanPointsSeries } from '../data/queries'
+import { teamRowStyle } from '../data/teamColors'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
+
+function metricSort(value: string | number): number | null {
+  if (value === 'NA') return null
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
 
 export function GameweekPage() {
   const navigate = useNavigate()
@@ -15,7 +22,7 @@ export function GameweekPage() {
   const selected = round || latest || max || 1
 
   const events = useMemo(
-    () => (snapshot ? gameweekEvents(snapshot, selected).slice(0, 80) : []),
+    () => (snapshot ? gameweekEvents(snapshot, selected) : []),
     [snapshot, selected],
   )
   const trend = useMemo(
@@ -57,6 +64,7 @@ export function GameweekPage() {
       <DataTable
         caption={`GW ${selected} returns (published points)`}
         defaultSort={{ id: 'pts', direction: 'desc' }}
+        rowStyle={(row) => teamRowStyle(row.team)}
         columns={[
           {
             id: 'who',
@@ -65,10 +73,16 @@ export function GameweekPage() {
             render: (row) => <PlayerLabel player={row.player} name={row.who} />,
           },
           {
-            id: 'event',
-            label: 'Event',
-            sortValue: (row) => row.event,
-            render: (row) => row.event,
+            id: 'team',
+            label: 'Team',
+            sortValue: (row) => row.team?.shortName ?? row.team?.name ?? '',
+            render: (row) => <TeamLabel team={row.team} />,
+          },
+          {
+            id: 'pos',
+            label: 'Pos',
+            sortValue: (row) => row.position,
+            render: (row) => row.position,
           },
           {
             id: 'pts',
@@ -77,14 +91,87 @@ export function GameweekPage() {
             render: (row) => row.points,
           },
           {
-            id: 'note',
-            label: 'Decision note',
+            id: 'event',
+            label: 'Event',
+            sortValue: (row) => row.points,
+            render: (row) => row.event,
+          },
+          {
+            id: 'g',
+            label: 'G',
+            sortValue: (row) => row.goals,
+            render: (row) => row.goals,
+          },
+          {
+            id: 'a',
+            label: 'A',
+            sortValue: (row) => row.assists,
+            render: (row) => row.assists,
+          },
+          {
+            id: 'cs',
+            label: 'CS',
+            sortValue: (row) => metricSort(row.cleanSheet),
+            render: (row) => row.cleanSheet,
+          },
+          {
+            id: 'saves',
+            label: 'Saves',
+            sortValue: (row) => metricSort(row.saves),
+            render: (row) => row.saves,
+          },
+          {
+            id: 'bonus',
+            label: 'Bonus',
+            sortValue: (row) => row.bonus,
+            render: (row) => row.bonus,
+          },
+          {
+            id: 'mins',
+            label: 'Mins',
             sortValue: (row) => row.minutes,
-            render: (row) => row.note,
+            render: (row) => row.minutes,
+          },
+          {
+            id: 'opp',
+            label: 'Opp',
+            sortValue: (row) => row.opponent?.shortName ?? '',
+            render: (row) =>
+              `${row.wasHome ? 'H' : 'A'} ${row.opponent?.shortName || row.opponent?.name || '—'}`,
+          },
+          {
+            id: 'gc',
+            label: 'GC',
+            sortValue: (row) => metricSort(row.goalsConceded),
+            render: (row) => row.goalsConceded,
+          },
+          {
+            id: 'xgi',
+            label: 'xGI',
+            sortValue: (row) => metricSort(row.expectedInvolvement),
+            render: (row) => row.expectedInvolvement,
+          },
+          {
+            id: 'xp',
+            label: 'xP',
+            sortValue: (row) => metricSort(row.expectedPoints),
+            render: (row) => row.expectedPoints,
+          },
+          {
+            id: 'dc',
+            label: 'DC',
+            sortValue: (row) => metricSort(row.defensiveContribution),
+            render: (row) => row.defensiveContribution,
+          },
+          {
+            id: 'bps',
+            label: 'BPS',
+            sortValue: (row) => row.bps,
+            render: (row) => row.bps,
           },
         ]}
         rows={events}
-        rowKey={(row, index) => `${row.who}-${row.event}-${index}`}
+        rowKey={(row, index) => `${row.who}-${row.points}-${index}`}
         empty="No published appearances for this gameweek."
       />
       <FormSlot label="Mean points (players with minutes)" data={trend} />

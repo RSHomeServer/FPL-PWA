@@ -103,6 +103,47 @@ describe('gameweek alignment', () => {
     expect(row?.round).toBe(7)
     expect(row?.fixture).toBe(9001)
     expect(row?.valueTenths).toBe(85)
+    expect(row?.bonus).toBe(0)
+    expect(row?.cleanSheets).toBe(0)
+    expect(row?.expectedPoints).toBeNull()
+  })
+
+  it('parses scoring and xP columns from current-season gameweek rows', () => {
+    const row = parsePerformanceRow('2025-26', {
+      element: '1',
+      round: '1',
+      minutes: '90',
+      total_points: '11',
+      goals_scored: '0',
+      assists: '0',
+      clean_sheets: '1',
+      saves: '4',
+      bonus: '1',
+      bps: '28',
+      goals_conceded: '0',
+      own_goals: '0',
+      penalties_missed: '0',
+      penalties_saved: '0',
+      yellow_cards: '0',
+      red_cards: '0',
+      starts: '1',
+      expected_goals: '0.00',
+      expected_assists: '0.01',
+      expected_goal_involvements: '0.01',
+      xP: '4.2',
+      defensive_contribution: '0',
+      position: 'GK',
+      was_home: 'True',
+      opponent_team: '2',
+      value: '55',
+      team: 'Arsenal',
+    })
+    expect(row?.cleanSheets).toBe(1)
+    expect(row?.saves).toBe(4)
+    expect(row?.bonus).toBe(1)
+    expect(row?.expectedPoints).toBe(4.2)
+    expect(row?.gwPosition).toBe('GK')
+    expect(row?.defensiveContribution).toBe(0)
   })
 })
 
@@ -123,6 +164,23 @@ describe('dedupePerformances', () => {
       totalPoints: 2,
       goalsScored: 0,
       assists: 0,
+      cleanSheets: 0,
+      saves: 0,
+      bonus: 0,
+      bps: 0,
+      goalsConceded: 0,
+      ownGoals: 0,
+      penaltiesMissed: 0,
+      penaltiesSaved: 0,
+      yellowCards: 0,
+      redCards: 0,
+      starts: 1,
+      expectedGoals: 0,
+      expectedAssists: 0,
+      expectedGoalInvolvements: 0,
+      expectedPoints: null,
+      defensiveContribution: null,
+      gwPosition: 'DEF',
       wasHome: true,
       opponentTeamId: 2,
       valueTenths: 50,

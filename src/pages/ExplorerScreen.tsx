@@ -1,5 +1,5 @@
 import { EmptyState, Sparkline, Stack } from '@songara/pwa-base/ui'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { ExplorerNav } from '../components/ExplorerNav'
 import { SeasonBar } from '../components/SeasonBar'
 import type { SeriesPoint } from '../data/queries'
@@ -60,7 +60,7 @@ export type SortDirection = 'asc' | 'desc'
 export type DataTableColumn<T> = {
   id: string
   label: string
-  sortValue?: (row: T) => string | number
+  sortValue?: (row: T) => string | number | null
   render: (row: T) => ReactNode
 }
 
@@ -76,6 +76,7 @@ export function DataTable<T>({
   empty,
   rowKey,
   defaultSort,
+  rowStyle,
 }: {
   caption: string
   columns: readonly DataTableColumn<T>[]
@@ -83,6 +84,7 @@ export function DataTable<T>({
   empty: string
   rowKey?: (row: T, index: number) => string | number
   defaultSort?: DataTableSort
+  rowStyle?: (row: T) => CSSProperties | undefined
 }) {
   const [sort, setSort] = useState<DataTableSort | null>(defaultSort ?? null)
 
@@ -150,7 +152,11 @@ export function DataTable<T>({
             </tr>
           ) : (
             sorted.map((row, index) => (
-              <tr key={rowKey ? rowKey(row, index) : index}>
+              <tr
+                key={rowKey ? rowKey(row, index) : index}
+                className={rowStyle?.(row) ? 'fpl-explorer__row--team' : undefined}
+                style={rowStyle?.(row)}
+              >
                 {columns.map((column) => (
                   <td key={column.id}>{column.render(row)}</td>
                 ))}
@@ -164,10 +170,15 @@ export function DataTable<T>({
 }
 
 function compareSortValues(
-  left: string | number,
-  right: string | number,
+  left: string | number | null,
+  right: string | number | null,
   direction: SortDirection,
 ): number {
+  const leftEmpty = left == null || left === 'NA'
+  const rightEmpty = right == null || right === 'NA'
+  if (leftEmpty && rightEmpty) return 0
+  if (leftEmpty) return 1
+  if (rightEmpty) return -1
   const factor = direction === 'asc' ? 1 : -1
   if (typeof left === 'number' && typeof right === 'number') {
     return (left - right) * factor

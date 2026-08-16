@@ -69,7 +69,8 @@ export async function loadSeasonSnapshot(
       cache.performances.where('seasonId').equals(seasonId).toArray(),
     ])
     const needsTeamCodes = teams.some((team) => typeof team.code !== 'number')
-    if (!needsTeamCodes) {
+    const needsGwScoring = performances.some((row) => typeof row.bonus !== 'number')
+    if (!needsTeamCodes && !needsGwScoring) {
       return { meta: meta as SeasonCacheMeta, players, teams, fixtures, performances }
     }
   }

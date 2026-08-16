@@ -5,6 +5,7 @@ import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { useFplData } from '../data/fplDataContext'
 import { playerDisplayName } from '../data/parse'
 import { formSeries, playerPriceLabel, teamById } from '../data/queries'
+import { teamRowStyle } from '../data/teamColors'
 import type { FplPlayer } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
 
@@ -100,6 +101,7 @@ export function PlayersPage() {
         ]}
         rows={players}
         rowKey={(player: FplPlayer) => player.id}
+        rowStyle={(player) => teamRowStyle(teams.get(player.teamId))}
         empty="No published players match this filter."
       />
       {selected ? (

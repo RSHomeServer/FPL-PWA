@@ -10,6 +10,8 @@ import {
   playerPriceLabel,
   teamById,
 } from '../data/queries'
+import { formatEvent, scoreParts } from '../data/scoring'
+import { teamRowStyle } from '../data/teamColors'
 import type { FplPerformance } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
 
@@ -74,13 +76,15 @@ export function PlayerDetailPage() {
           },
           {
             id: 'returns',
-            label: 'Returns',
+            label: 'Event',
             sortValue: (row) => row.totalPoints,
-            render: (row) => `${row.goalsScored}G ${row.assists}A · ${row.totalPoints} pts`,
+            render: (row) =>
+              formatEvent(scoreParts(row, player?.position && player.position !== 'UNK' ? player.position : row.gwPosition)),
           },
         ]}
         rows={appearances}
         rowKey={(row: FplPerformance) => `${row.round}-${row.fixture}`}
+        rowStyle={() => teamRowStyle(club)}
         empty="No published gameweek rows for this player."
       />
       <FormSlot label="Form by gameweek" data={spark} />

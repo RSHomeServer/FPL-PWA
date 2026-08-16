@@ -70,6 +70,25 @@ export type FplPerformance = {
   totalPoints: number
   goalsScored: number
   assists: number
+  cleanSheets: number
+  saves: number
+  bonus: number
+  bps: number
+  goalsConceded: number
+  ownGoals: number
+  penaltiesMissed: number
+  penaltiesSaved: number
+  yellowCards: number
+  redCards: number
+  starts: number
+  expectedGoals: number
+  expectedAssists: number
+  expectedGoalInvolvements: number
+  /** vaastav `xP` when published; null on older gameweek files. */
+  expectedPoints: number | null
+  /** 2025-26 defensive contribution count; null when the column is absent. */
+  defensiveContribution: number | null
+  gwPosition: PlayerPosition
   wasHome: boolean
   opponentTeamId: number
   valueTenths: number
