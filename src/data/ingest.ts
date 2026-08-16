@@ -68,7 +68,11 @@ export async function loadSeasonSnapshot(
       cache.fixtures.where('seasonId').equals(seasonId).toArray(),
       cache.performances.where('seasonId').equals(seasonId).toArray(),
     ])
-    return { meta: meta as SeasonCacheMeta, players, teams, fixtures, performances }
+    const needsTeamCodes = teams.some((team) => typeof team.code !== 'number')
+    const needsGwScoring = performances.some((row) => typeof row.bonus !== 'number')
+    if (!needsTeamCodes && !needsGwScoring) {
+      return { meta: meta as SeasonCacheMeta, players, teams, fixtures, performances }
+    }
   }
 
   return ingestSeason(seasonId, options?.kind ?? meta?.kind ?? 'historical')
@@ -178,6 +182,7 @@ function deriveTeamsFromPerformances(
   return [...names.values()].map((name, index) => ({
     seasonId,
     id: index + 1,
+    code: 0,
     name,
     shortName: name.slice(0, 3).toUpperCase(),
     strength: 0,

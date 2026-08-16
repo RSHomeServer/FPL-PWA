@@ -36,6 +36,8 @@ export type FplPlayer = {
 export type FplTeam = {
   seasonId: string
   id: number
+  /** Premier League / FPL team code from vaastav `teams.csv` (`code` column). */
+  code: number
   name: string
   shortName: string
   strength: number
@@ -68,6 +70,25 @@ export type FplPerformance = {
   totalPoints: number
   goalsScored: number
   assists: number
+  cleanSheets: number
+  saves: number
+  bonus: number
+  bps: number
+  goalsConceded: number
+  ownGoals: number
+  penaltiesMissed: number
+  penaltiesSaved: number
+  yellowCards: number
+  redCards: number
+  starts: number
+  expectedGoals: number
+  expectedAssists: number
+  expectedGoalInvolvements: number
+  /** vaastav `xP` when published; null on older gameweek files. */
+  expectedPoints: number | null
+  /** 2025-26 defensive contribution count; null when the column is absent. */
+  defensiveContribution: number | null
+  gwPosition: PlayerPosition
   wasHome: boolean
   opponentTeamId: number
   valueTenths: number
