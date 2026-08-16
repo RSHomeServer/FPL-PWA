@@ -81,10 +81,7 @@ export function latestPlayedRound(rows: readonly FplPerformance[]): number {
   return max
 }
 
-export function gameweekEvents(
-  snapshot: SeasonSnapshot,
-  round: number,
-): {
+export type GameweekEventRow = {
   player: FplPlayer | undefined
   team: FplTeam | undefined
   opponent: FplTeam | undefined
@@ -104,7 +101,12 @@ export function gameweekEvents(
   defensiveContribution: string
   bps: number
   wasHome: boolean
-}[] {
+}
+
+export function gameweekEvents(
+  snapshot: SeasonSnapshot,
+  round: number,
+): GameweekEventRow[] {
   const names = playerById(snapshot.players)
   const teams = teamById(snapshot.teams)
   return snapshot.performances

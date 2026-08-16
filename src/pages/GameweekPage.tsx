@@ -2,10 +2,11 @@ import { Button, Label, Select } from '@songara/pwa-base/ui'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PlayerLabel, TeamLabel } from '../components/FplMedia'
+import { GameweekPointsChart } from '../components/GameweekPointsChart'
 import { useFplData } from '../data/fplDataContext'
-import { gameweekEvents, latestPlayedRound, maxRound, meanPointsSeries } from '../data/queries'
+import { gameweekEvents, latestPlayedRound, maxRound } from '../data/queries'
 import { teamRowStyle } from '../data/teamColors'
-import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
+import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
 
 function metricSort(value: string | number): number | null {
   if (value === 'NA') return null
@@ -24,10 +25,6 @@ export function GameweekPage() {
   const events = useMemo(
     () => (snapshot ? gameweekEvents(snapshot, selected) : []),
     [snapshot, selected],
-  )
-  const trend = useMemo(
-    () => (snapshot ? meanPointsSeries(snapshot.performances) : []),
-    [snapshot],
   )
 
   return (
@@ -191,11 +188,7 @@ export function GameweekPage() {
         rowKey={(row, index) => `${row.who}-${row.points}-${index}`}
         empty="No published appearances for this gameweek."
       />
-      <FormSlot
-        label="Season average points by gameweek"
-        data={trend}
-        note="Not a chart of the table above. For each gameweek this season, this is the mean published total_points among players who played at least one minute. Use it to see whether this week was a high- or low-scoring round. Hover the line for that gameweek’s average."
-      />
+      <GameweekPointsChart round={selected} rows={events} />
     </ExplorerScreen>
   )
 }
