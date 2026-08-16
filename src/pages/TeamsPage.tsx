@@ -35,24 +35,28 @@ export function TeamsPage() {
           {
             id: 'team',
             label: 'Team',
+            hint: 'Club name and crest from published teams.csv.',
             sortValue: (team) => team.shortName || team.name,
             render: (team) => <TeamLabel team={team} />,
           },
           {
             id: 'attack',
             label: 'Attack',
+            hint: 'Mean of strength_attack_home and strength_attack_away from teams.csv (FPL attack strength).',
             sortValue: (team) => (team.strengthAttackHome + team.strengthAttackAway) / 2 || team.strength,
             render: (team) => (team.strengthAttackHome + team.strengthAttackAway) / 2 || team.strength || '—',
           },
           {
             id: 'defence',
             label: 'Defence',
+            hint: 'Mean of strength_defence_home and strength_defence_away from teams.csv.',
             sortValue: (team) => (team.strengthDefenceHome + team.strengthDefenceAway) / 2,
             render: (team) => (team.strengthDefenceHome + team.strengthDefenceAway) / 2 || '—',
           },
           {
             id: 'next',
             label: 'Next fixtures',
+            hint: 'Next unfinished fixtures for this club (home/away vs opponent short name).',
             sortValue: (team) => upcomingFixturesForTeam(snapshot?.fixtures ?? [], team.id).length,
             render: (team) => {
               const next = snapshot

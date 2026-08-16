@@ -1,5 +1,5 @@
-import { EmptyState, Sparkline, Stack } from '@songara/pwa-base/ui'
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { EmptyState, Stack } from '@songara/pwa-base/ui'
+import { useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { ExplorerNav } from '../components/ExplorerNav'
 import { SeasonBar } from '../components/SeasonBar'
 import type { SeriesPoint } from '../data/queries'
@@ -60,6 +60,7 @@ export type SortDirection = 'asc' | 'desc'
 export type DataTableColumn<T> = {
   id: string
   label: string
+  hint?: string
   sortValue?: (row: T) => string | number | null
   render: (row: T) => ReactNode
 }
@@ -125,7 +126,7 @@ export function DataTable<T>({
                     : 'descending'
                   : 'none'
               return (
-                <th key={column.id} scope="col" aria-sort={ariaSort}>
+                <th key={column.id} scope="col" aria-sort={ariaSort} title={column.hint}>
                   {column.sortValue ? (
                     <button
                       type="button"
@@ -140,6 +141,11 @@ export function DataTable<T>({
                   ) : (
                     column.label
                   )}
+                  {column.hint ? (
+                    <span className="fpl-explorer__col-hint" role="tooltip">
+                      {column.hint}
+                    </span>
+                  ) : null}
                 </th>
               )
             })}
@@ -210,7 +216,6 @@ export function FormSlot({
   yAxisLabel?: string
 }) {
   const series = [...data]
-  const spark = series.map((point) => point.y)
   const summary = seriesSummary(series)
   return (
     <figure className="fpl-explorer__chart">
@@ -221,14 +226,11 @@ export function FormSlot({
         xAxisLabel={xAxisLabel}
         yAxisLabel={yAxisLabel}
       />
-      {spark.length > 0 ? (
-        <Sparkline data={spark} label={`${label} sparkline`} color="var(--fpl-lime)" />
-      ) : null}
       <p className="fpl-explorer__chart-note">
         {note ??
           (series.length === 0
             ? 'Chart stays empty until published values exist for this selection.'
-            : `${summary} · ${series.length} ${xAxisLabel === 'Gameweek' ? 'published gameweek samples' : 'samples'}.`)}
+            : `${summary} · ${series.length} ${xAxisLabel === 'Gameweek' ? 'published gameweek samples' : 'samples'}. Hover a point for its value.`)}
       </p>
     </figure>
   )
@@ -253,6 +255,7 @@ function LabelledSeriesChart({
   const padB = 40
   const innerW = width - padL - padR
   const innerH = height - padT - padB
+  const [hover, setHover] = useState<SeriesPoint | null>(null)
 
   const ys = data.map((point) => point.y)
   const yMin = ys.length ? Math.min(0, ...ys) : 0
@@ -271,6 +274,22 @@ function LabelledSeriesChart({
     return padT + innerH - ((y - yMin) / yRange) * innerH
   }
 
+  function nearestPoint(event: MouseEvent<SVGSVGElement>): SeriesPoint | null {
+    if (data.length === 0) return null
+    const rect = event.currentTarget.getBoundingClientRect()
+    const svgX = ((event.clientX - rect.left) / rect.width) * width
+    let best = data[0]!
+    let bestDist = Infinity
+    for (const point of data) {
+      const dist = Math.abs(xPos(point.x) - svgX)
+      if (dist < bestDist) {
+        best = point
+        bestDist = dist
+      }
+    }
+    return best
+  }
+
   const polyline = data.map((point) => `${xPos(point.x).toFixed(1)},${yPos(point.y).toFixed(1)}`).join(' ')
   const yTicks = [yMin, yMin + yRange / 2, yMax]
   const xTicks =
@@ -279,78 +298,90 @@ function LabelledSeriesChart({
       : [data[0], data[Math.floor(data.length / 2)], data[data.length - 1]].filter(
           (point): point is SeriesPoint => Boolean(point),
         )
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
 
   return (
-    <svg
-      className="fpl-explorer__labelled-chart"
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label={`${label}. ${xAxisLabel} on the x axis, ${yAxisLabel} on the y axis. ${seriesSummary(data)}`}
-    >
-      <line x1={padL} y1={padT} x2={padL} y2={height - padB} className="fpl-explorer__axis" />
-      <line
-        x1={padL}
-        y1={height - padB}
-        x2={width - padR}
-        y2={height - padB}
-        className="fpl-explorer__axis"
-      />
-      {yTicks.map((tick) => (
-        <g key={`y-${tick}`}>
-          <line
-            x1={padL - 4}
-            y1={yPos(tick)}
-            x2={padL}
-            y2={yPos(tick)}
-            className="fpl-explorer__axis"
-          />
-          <text x={padL - 8} y={yPos(tick) + 4} textAnchor="end" className="fpl-explorer__tick">
-            {Number.isInteger(tick) ? tick : tick.toFixed(1)}
-          </text>
-        </g>
-      ))}
-      {xTicks.map((point) => (
-        <text
-          key={`x-${point.x}-${point.label ?? ''}`}
-          x={xPos(point.x)}
-          y={height - padB + 16}
-          textAnchor="middle"
-          className="fpl-explorer__tick"
-        >
-          {point.label ?? String(point.x)}
-        </text>
-      ))}
-      {polyline ? (
-        <polyline
-          points={polyline}
-          fill="none"
-          stroke="var(--fpl-lime)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      ) : null}
-      {data.map((point, index) => (
-        <circle
-          key={`${point.x}-${index}`}
-          cx={xPos(point.x)}
-          cy={yPos(point.y)}
-          r="3"
-          fill="var(--fpl-lime)"
-        />
-      ))}
-      <text x={width / 2} y={height - 6} textAnchor="middle" className="fpl-explorer__axis-label">
-        {xAxisLabel}
-      </text>
-      <text
-        x={14}
-        y={height / 2}
-        textAnchor="middle"
-        transform={`rotate(-90 14 ${height / 2})`}
-        className="fpl-explorer__axis-label"
+    <div className="fpl-explorer__chart-plot">
+      <svg
+        className="fpl-explorer__labelled-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`${label}. ${xAxisLabel} on the x axis, ${yAxisLabel} on the y axis. ${seriesSummary(data)}`}
+        onMouseMove={(event) => setHover(nearestPoint(event))}
+        onMouseLeave={() => setHover(null)}
       >
-        {yAxisLabel}
-      </text>
-    </svg>
+        <line x1={padL} y1={padT} x2={padL} y2={height - padB} className="fpl-explorer__axis" />
+        <line
+          x1={padL}
+          y1={height - padB}
+          x2={width - padR}
+          y2={height - padB}
+          className="fpl-explorer__axis"
+        />
+        {yTicks.map((tick) => (
+          <g key={`y-${tick}`}>
+            <line
+              x1={padL - 4}
+              y1={yPos(tick)}
+              x2={padL}
+              y2={yPos(tick)}
+              className="fpl-explorer__axis"
+            />
+            <text x={padL - 8} y={yPos(tick) + 4} textAnchor="end" className="fpl-explorer__tick">
+              {Number.isInteger(tick) ? tick : tick.toFixed(1)}
+            </text>
+          </g>
+        ))}
+        {xTicks.map((point) => (
+          <text
+            key={`x-${point.x}-${point.label ?? ''}`}
+            x={xPos(point.x)}
+            y={height - padB + 16}
+            textAnchor="middle"
+            className="fpl-explorer__tick"
+          >
+            {point.label ?? String(point.x)}
+          </text>
+        ))}
+        {polyline ? (
+          <polyline
+            points={polyline}
+            fill="none"
+            stroke="var(--fpl-lime)"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        ) : null}
+        {data.map((point, index) => (
+          <circle
+            key={`${point.x}-${index}`}
+            cx={xPos(point.x)}
+            cy={yPos(point.y)}
+            r={hover === point ? 5 : 3}
+            fill="var(--fpl-lime)"
+          />
+        ))}
+        <text x={width / 2} y={height - 6} textAnchor="middle" className="fpl-explorer__axis-label">
+          {xAxisLabel}
+        </text>
+        <text
+          x={14}
+          y={height / 2}
+          textAnchor="middle"
+          transform={`rotate(-90 14 ${height / 2})`}
+          className="fpl-explorer__axis-label"
+        >
+          {yAxisLabel}
+        </text>
+      </svg>
+      {hover ? (
+        <p className="fpl-explorer__chart-hover" role="status">
+          {hover.label ?? `${xAxisLabel} ${hover.x}`}: {fmt(hover.y)} {yAxisLabel.toLowerCase()}
+        </p>
+      ) : (
+        <p className="fpl-explorer__chart-hover fpl-explorer__chart-hover--idle">Hover the line for a value</p>
+      )}
+    </div>
   )
 }

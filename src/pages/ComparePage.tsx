@@ -135,18 +135,21 @@ export function ComparePage() {
           {
             id: 'metric',
             label: 'Metric',
+            hint: 'Published season totals compared for the two selected players.',
             sortValue: (row) => row.metric,
             render: (row) => row.metric,
           },
           {
             id: 'a',
             label: 'Player A',
+            hint: 'Value for the first selected player.',
             sortValue: (row) => row.sortA,
             render: (row) => row.a,
           },
           {
             id: 'b',
             label: 'Player B',
+            hint: 'Value for the second selected player.',
             sortValue: (row) => row.sortB,
             render: (row) => row.b,
           },

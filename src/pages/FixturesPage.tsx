@@ -61,24 +61,28 @@ export function FixturesPage() {
           {
             id: 'kickoff',
             label: 'Kick-off',
+            hint: 'Published kickoff_time for the fixture.',
             sortValue: (fixture) => fixture.kickoffTime,
             render: (fixture) => formatKickoff(fixture.kickoffTime),
           },
           {
             id: 'home',
             label: 'Home',
+            hint: 'Home club from fixtures.csv team_h.',
             sortValue: (fixture) => teams.get(fixture.teamH)?.shortName ?? String(fixture.teamH),
             render: (fixture) => <TeamLabel team={teams.get(fixture.teamH)} />,
           },
           {
             id: 'away',
             label: 'Away',
+            hint: 'Away club from fixtures.csv team_a.',
             sortValue: (fixture) => teams.get(fixture.teamA)?.shortName ?? String(fixture.teamA),
             render: (fixture) => <TeamLabel team={teams.get(fixture.teamA)} />,
           },
           {
             id: 'notes',
             label: 'Notes',
+            hint: 'Finished score if played; otherwise FPL fixture difficulty (FDR) for home / away.',
             sortValue: (fixture) => (fixture.finished ? 1 : 0),
             render: (fixture) =>
               fixture.finished

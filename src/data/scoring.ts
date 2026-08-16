@@ -19,10 +19,18 @@ export function appearancePoints(minutes: number): number {
   return minutes >= 60 ? 2 : 1
 }
 
+/** Official FPL: GK 10, DEF 6, MID 5, FWD 4. */
+export function pointsPerGoal(position: PlayerPosition): number {
+  if (position === 'GK') return 10
+  if (position === 'DEF') return 6
+  if (position === 'MID' || position === 'AM') return 5
+  if (position === 'FWD') return 4
+  return 4
+}
+
 export function goalPoints(position: PlayerPosition, goals: number): number {
   if (goals <= 0) return 0
-  const perGoal = position === 'FWD' ? 4 : isMidfield(position) ? 5 : 6
-  return perGoal * goals
+  return pointsPerGoal(position) * goals
 }
 
 export function cleanSheetPoints(
@@ -81,8 +89,15 @@ export function scoreParts(
 ): ScorePart[] {
   const parts: ScorePart[] = []
   const appearance = appearancePoints(row.minutes)
-  if (appearance) parts.push({ label: `${row.minutes} min`, points: appearance })
-  if (row.goalsScored > 0) parts.push({ label: `${row.goalsScored}G`, points: goalPoints(position, row.goalsScored) })
+  if (appearance) {
+    parts.push({ label: row.minutes >= 60 ? '60+' : '<60', points: appearance })
+  }
+  if (row.goalsScored > 0) {
+    parts.push({
+      label: `${row.goalsScored}G`,
+      points: goalPoints(position, row.goalsScored),
+    })
+  }
   if (row.assists > 0) parts.push({ label: `${row.assists}A`, points: 3 * row.assists })
   const cleanSheet = cleanSheetPoints(position, row.minutes, row.cleanSheets)
   if (cleanSheet) parts.push({ label: 'CS', points: cleanSheet })
@@ -97,7 +112,7 @@ export function scoreParts(
   if (row.redCards > 0) parts.push({ label: `${row.redCards} RC`, points: -3 * row.redCards })
   const dc = defensiveContributionPoints(position, row.defensiveContribution)
   if (dc) parts.push({ label: 'DC', points: dc })
-  if (row.bonus > 0) parts.push({ label: `${row.bonus} bonus`, points: row.bonus })
+  if (row.bonus > 0) parts.push({ label: 'Bonus', points: row.bonus })
 
   const accounted = parts.reduce((sum, part) => sum + part.points, 0)
   const residual = row.totalPoints - accounted

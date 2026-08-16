@@ -65,18 +65,21 @@ export function PlayerDetailPage() {
           {
             id: 'gw',
             label: 'Gameweek',
+            hint: 'Published round / GW number for this appearance.',
             sortValue: (row) => row.round,
             render: (row) => `GW ${row.round}`,
           },
           {
             id: 'mins',
             label: 'Minutes',
+            hint: 'Minutes played. 1–59 scores +1 FPL point; 60+ scores +2.',
             sortValue: (row) => row.minutes,
             render: (row) => row.minutes,
           },
           {
             id: 'returns',
             label: 'Event',
+            hint: 'Scoring parts for this appearance. Goals: GK 10, DEF 6, MID 5, FWD 4. Assists +3. Bonus is 1–3 FPL bonus points.',
             sortValue: (row) => row.totalPoints,
             render: (row) =>
               formatEvent(scoreParts(row, player?.position && player.position !== 'UNK' ? player.position : row.gwPosition)),

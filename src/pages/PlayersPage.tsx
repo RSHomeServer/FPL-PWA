@@ -57,6 +57,7 @@ export function PlayersPage() {
           {
             id: 'player',
             label: 'Player',
+            hint: 'Published web name. Click to select; open the name below for the player page.',
             sortValue: (player) => playerDisplayName(player),
             render: (player) => (
               <button
@@ -71,30 +72,35 @@ export function PlayersPage() {
           {
             id: 'pos',
             label: 'Pos',
+            hint: 'FPL position from players_raw.csv (GK, DEF, MID, FWD).',
             sortValue: (player) => player.position,
             render: (player) => player.position,
           },
           {
             id: 'team',
             label: 'Team',
+            hint: 'Club short name and crest from the published team code.',
             sortValue: (player) => teams.get(player.teamId)?.shortName ?? String(player.teamId),
             render: (player) => <TeamLabel team={teams.get(player.teamId)} />,
           },
           {
             id: 'price',
             label: 'Price',
+            hint: 'now_cost from players_raw, in tenths of a million (shown as £m).',
             sortValue: (player) => player.nowCostTenths,
             render: (player) => playerPriceLabel(player),
           },
           {
             id: 'pts',
             label: 'Pts',
+            hint: 'Season total_points from the published player file.',
             sortValue: (player) => player.totalPoints,
             render: (player) => player.totalPoints,
           },
           {
             id: 'mins',
             label: 'Mins',
+            hint: 'Season minutes from the published player file.',
             sortValue: (player) => player.minutes,
             render: (player) => player.minutes,
           },

@@ -44,10 +44,25 @@ describe('scoreParts', () => {
       row({ minutes: 90, cleanSheets: 1, totalPoints: 6 }),
       'DEF',
     )
-    expect(formatEvent(parts)).toBe('90 min (+2) · CS (+4)')
+    expect(formatEvent(parts)).toBe('60+ (+2) · CS (+4)')
   })
 
-  it('includes goals, assists, saves, and bonus with FPL weights', () => {
+  it('uses 10/6/5/4 goal weights and 3 per assist', () => {
+    expect(formatEvent(scoreParts(row({ minutes: 90, goalsScored: 1, totalPoints: 12 }), 'GK'))).toBe(
+      '60+ (+2) · 1G (+10)',
+    )
+    expect(formatEvent(scoreParts(row({ minutes: 90, goalsScored: 1, totalPoints: 8 }), 'DEF'))).toBe(
+      '60+ (+2) · 1G (+6)',
+    )
+    expect(formatEvent(scoreParts(row({ minutes: 90, goalsScored: 1, totalPoints: 7 }), 'MID'))).toBe(
+      '60+ (+2) · 1G (+5)',
+    )
+    expect(formatEvent(scoreParts(row({ minutes: 90, goalsScored: 1, totalPoints: 6 }), 'FWD'))).toBe(
+      '60+ (+2) · 1G (+4)',
+    )
+  })
+
+  it('includes assists, saves, and FPL bonus points (1–3), not BPS', () => {
     const parts = scoreParts(
       row({
         minutes: 90,
@@ -55,16 +70,16 @@ describe('scoreParts', () => {
         assists: 1,
         saves: 6,
         bonus: 2,
-        totalPoints: 2 + 6 + 3 + 2 + 2,
+        totalPoints: 2 + 10 + 3 + 2 + 2,
       }),
       'GK',
     )
-    expect(formatEvent(parts)).toBe('90 min (+2) · 1G (+6) · 1A (+3) · 6 sv (+2) · 2 bonus (+2)')
+    expect(formatEvent(parts)).toBe('60+ (+2) · 1G (+10) · 1A (+3) · 6 sv (+2) · Bonus (+2)')
   })
 
   it('omits clean sheets for forwards even when the flag is set', () => {
     const parts = scoreParts(row({ minutes: 90, cleanSheets: 1, totalPoints: 2 }), 'FWD')
-    expect(formatEvent(parts)).toBe('90 min (+2)')
+    expect(formatEvent(parts)).toBe('60+ (+2)')
   })
 
   it('applies defensive contribution when the published count meets the threshold', () => {
@@ -72,7 +87,7 @@ describe('scoreParts', () => {
       row({ minutes: 90, defensiveContribution: 12, totalPoints: 4 }),
       'MID',
     )
-    expect(formatEvent(parts)).toBe('90 min (+2) · DC (+2)')
+    expect(formatEvent(parts)).toBe('60+ (+2) · DC (+2)')
   })
 })
 
