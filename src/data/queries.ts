@@ -101,6 +101,8 @@ export type GameweekEventRow = {
   defensiveContribution: string
   bps: number
   wasHome: boolean
+  /** GW price from vaastav `value` (tenths of a million). */
+  costTenths: number
 }
 
 export function gameweekEvents(
@@ -140,9 +142,30 @@ export function gameweekEvents(
         ),
         bps: row.bps,
         wasHome: row.wasHome,
+        costTenths: row.valueTenths,
       }
     })
     .sort((a, b) => b.points - a.points)
+}
+
+export type GameweekRowFilters = {
+  teamId: number | 'all'
+  position: FplPlayer['position'] | 'all'
+  minCostTenths: number | null
+  maxCostTenths: number | null
+}
+
+export function filterGameweekRows(
+  rows: readonly GameweekEventRow[],
+  filters: GameweekRowFilters,
+): GameweekEventRow[] {
+  return rows.filter((row) => {
+    if (filters.teamId !== 'all' && row.team?.id !== filters.teamId) return false
+    if (filters.position !== 'all' && row.position !== filters.position) return false
+    if (filters.minCostTenths != null && row.costTenths < filters.minCostTenths) return false
+    if (filters.maxCostTenths != null && row.costTenths > filters.maxCostTenths) return false
+    return true
+  })
 }
 
 export function meanPointsSeries(rows: readonly FplPerformance[]): SeriesPoint[] {

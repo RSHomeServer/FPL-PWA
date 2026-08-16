@@ -61,7 +61,8 @@ export function GameweekPointsChart({
                       <div className="fpl-gw-bars__tip" role="tooltip">
                         <p className="fpl-gw-bars__tip-name">{row.who}</p>
                         <p>
-                          {row.team?.shortName || row.team?.name || '—'} · {row.position} · {opponent}
+                          {row.team?.shortName || row.team?.name || '—'} · {row.position} · {opponent} ·{' '}
+                          {row.costTenths ? `£${(row.costTenths / 10).toFixed(1)}m` : '—'}
                         </p>
                         <p>
                           <strong>{row.points} pts</strong>
@@ -76,7 +77,7 @@ export function GameweekPointsChart({
           </div>
           <p className="fpl-explorer__chart-note" role="status">
             {focused
-              ? `${focused.who} · ${focused.team?.shortName || focused.team?.name || '—'} · ${focused.position} · ${focused.wasHome ? 'H' : 'A'} ${focused.opponent?.shortName || focused.opponent?.name || '—'} · ${focused.points} pts · ${focused.event}`
+              ? `${focused.who} · ${focused.team?.shortName || focused.team?.name || '—'} · ${focused.position} · ${focused.wasHome ? 'H' : 'A'} ${focused.opponent?.shortName || focused.opponent?.name || '—'} · ${focused.costTenths ? `£${(focused.costTenths / 10).toFixed(1)}m` : '—'} · ${focused.points} pts · ${focused.event}`
               : 'Same players as the table, ordered by published points. Scroll sideways. Hover or focus a bar for name, team, position, opponent, points, and the Event breakdown.'}
           </p>
         </>

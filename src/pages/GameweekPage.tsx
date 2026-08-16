@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { GameweekPointsChart } from '../components/GameweekPointsChart'
 import { useFplData } from '../data/fplDataContext'
-import { gameweekEvents, latestPlayedRound, maxRound } from '../data/queries'
+import { filterGameweekRows, gameweekEvents, latestPlayedRound, maxRound } from '../data/queries'
+import { formatGbpFromTenths } from '../data/prices'
 import { teamRowStyle } from '../data/teamColors'
+import type { PlayerPosition } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
 
 function metricSort(value: string | number): number | null {
@@ -20,12 +22,48 @@ export function GameweekPage() {
   const max = snapshot ? maxRound(snapshot.performances, snapshot.fixtures) : 0
   const latest = snapshot ? latestPlayedRound(snapshot.performances) : 0
   const [round, setRound] = useState(0)
+  const [teamFilter, setTeamFilter] = useState<'all' | number>('all')
+  const [posFilter, setPosFilter] = useState<'all' | PlayerPosition>('all')
+  const [minCost, setMinCost] = useState<number | null>(null)
+  const [maxCost, setMaxCost] = useState<number | null>(null)
   const selected = round || latest || max || 1
 
   const events = useMemo(
     () => (snapshot ? gameweekEvents(snapshot, selected) : []),
     [snapshot, selected],
   )
+
+  const teamOptions = useMemo(() => {
+    const seen = new Map<number, string>()
+    for (const row of events) {
+      if (row.team && !seen.has(row.team.id)) seen.set(row.team.id, row.team.shortName || row.team.name)
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [events])
+
+  const costOptions = useMemo(() => {
+    const values = [...new Set(events.map((row) => row.costTenths).filter((n) => n > 0))].sort((a, b) => a - b)
+    return values
+  }, [events])
+
+  const filtered = useMemo(
+    () =>
+      filterGameweekRows(events, {
+        teamId: teamFilter,
+        position: posFilter,
+        minCostTenths: minCost,
+        maxCostTenths: maxCost,
+      }),
+    [events, maxCost, minCost, posFilter, teamFilter],
+  )
+
+  function changeRound(next: number) {
+    setRound(next)
+    setTeamFilter('all')
+    setPosFilter('all')
+    setMinCost(null)
+    setMaxCost(null)
+  }
 
   return (
     <ExplorerScreen
@@ -34,16 +72,82 @@ export function GameweekPage() {
       question="What happened this gameweek that should change who you keep, sell, or captain?"
     >
       {max > 0 ? (
-        <Label className="fpl-explorer__field">
-          Gameweek
-          <Select value={String(selected)} onChange={(event) => setRound(Number(event.target.value))}>
-            {Array.from({ length: max }, (_, index) => index + 1).map((gw) => (
-              <option key={gw} value={gw}>
-                GW {gw}
-              </option>
-            ))}
-          </Select>
-        </Label>
+        <div className="fpl-explorer__toolbar">
+          <Label className="fpl-explorer__field">
+            Gameweek
+            <Select value={String(selected)} onChange={(event) => changeRound(Number(event.target.value))}>
+              {Array.from({ length: max }, (_, index) => index + 1).map((gw) => (
+                <option key={gw} value={gw}>
+                  GW {gw}
+                </option>
+              ))}
+            </Select>
+          </Label>
+          <Label className="fpl-explorer__field">
+            Team
+            <Select
+              value={teamFilter === 'all' ? 'all' : String(teamFilter)}
+              onChange={(event) =>
+                setTeamFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))
+              }
+            >
+              <option value="all">All teams</option>
+              {teamOptions.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+          </Label>
+          <Label className="fpl-explorer__field">
+            Position
+            <Select
+              value={posFilter}
+              onChange={(event) => setPosFilter(event.target.value as 'all' | PlayerPosition)}
+            >
+              <option value="all">All positions</option>
+              <option value="GK">GK</option>
+              <option value="DEF">DEF</option>
+              <option value="MID">MID</option>
+              <option value="FWD">FWD</option>
+            </Select>
+          </Label>
+          <Label className="fpl-explorer__field">
+            Min cost
+            <Select
+              value={minCost == null ? 'all' : String(minCost)}
+              onChange={(event) =>
+                setMinCost(event.target.value === 'all' ? null : Number(event.target.value))
+              }
+            >
+              <option value="all">Any</option>
+              {costOptions.map((tenths) => (
+                <option key={`min-${tenths}`} value={tenths}>
+                  {formatGbpFromTenths(tenths)}
+                </option>
+              ))}
+            </Select>
+          </Label>
+          <Label className="fpl-explorer__field">
+            Max cost
+            <Select
+              value={maxCost == null ? 'all' : String(maxCost)}
+              onChange={(event) =>
+                setMaxCost(event.target.value === 'all' ? null : Number(event.target.value))
+              }
+            >
+              <option value="all">Any</option>
+              {costOptions.map((tenths) => (
+                <option key={`max-${tenths}`} value={tenths}>
+                  {formatGbpFromTenths(tenths)}
+                </option>
+              ))}
+            </Select>
+          </Label>
+          <p className="fpl-explorer__meta">
+            {filtered.length} of {events.length} players
+          </p>
+        </div>
       ) : null}
 
       {status !== 'loading' && events.length === 0 ? (
@@ -83,6 +187,13 @@ export function GameweekPage() {
             hint: 'FPL position: GK, DEF, MID, or FWD. This sets goal, clean-sheet, save, and defensive-contribution scoring.',
             sortValue: (row) => row.position,
             render: (row) => row.position,
+          },
+          {
+            id: 'cost',
+            label: 'Cost',
+            hint: 'Price in this gameweek from vaastav `value` (tenths of a million, e.g. 85 = £8.5m). This is the GW snapshot, not players_raw now_cost, so it moves with transfers.',
+            sortValue: (row) => row.costTenths,
+            render: (row) => (row.costTenths ? formatGbpFromTenths(row.costTenths) : '—'),
           },
           {
             id: 'pts',
@@ -184,11 +295,11 @@ export function GameweekPage() {
             render: (row) => row.bps,
           },
         ]}
-        rows={events}
+        rows={filtered}
         rowKey={(row, index) => `${row.who}-${row.points}-${index}`}
-        empty="No published appearances for this gameweek."
+        empty="No published appearances match these filters."
       />
-      <GameweekPointsChart round={selected} rows={events} />
+      <GameweekPointsChart round={selected} rows={filtered} />
     </ExplorerScreen>
   )
 }

@@ -346,7 +346,7 @@
   align-items: flex-end;
   gap: 0.35rem;
   min-height: 14rem;
-  padding: 4.5rem 0.25rem 0;
+  padding: 4.5rem 0.75rem 0;
 }
 
 .fpl-gw-bars__col {
@@ -408,6 +408,17 @@
   text-align: left;
   box-shadow: 0 0.5rem 1.25rem color-mix(in srgb, #000 50%, transparent);
   pointer-events: none;
+}
+
+.fpl-gw-bars__col:nth-child(-n+6) .fpl-gw-bars__tip {
+  left: 0;
+  transform: none;
+}
+
+.fpl-gw-bars__col:nth-last-child(-n+6):not(:nth-child(-n+6)) .fpl-gw-bars__tip {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 .fpl-gw-bars__tip p {
