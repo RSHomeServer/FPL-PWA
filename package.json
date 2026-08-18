@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "gw0:phase0": "tsx scripts/run-gw0-phase-0.ts",
+    "gw0:phase1": "tsx scripts/run-gw0-phase-1.ts",
     "preview": "vite preview --host 127.0.0.1 --port 5304"
   },
   "dependencies": {

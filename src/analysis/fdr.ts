@@ -119,6 +119,26 @@ export function lookupFactor(table: FdrRateTable | null, fdr: FdrBucket | null):
   return row.n > 0 && Number.isFinite(row.factor) ? row.factor : 1
 }
 
+/**
+ * Frozen multi-season FDR tables from `docs/gw0-phase-0-validation.md`.
+ * Phase 1 reuses these; do not re-fit as part of GW0 projection.
+ */
+export const PHASE0_GOALS_FDR: FdrRateTable = {
+  1: { mean: 2.158, n: 114, factor: 1.255 },
+  2: { mean: 1.719, n: 2242, factor: 1 },
+  3: { mean: 1.396, n: 2033, factor: 0.812 },
+  4: { mean: 1.106, n: 1311, factor: 0.643 },
+  5: { mean: 0.797, n: 380, factor: 0.464 },
+}
+
+export const PHASE0_CS_FDR: FdrRateTable = {
+  1: { mean: 0.439, n: 114, factor: 1.269 },
+  2: { mean: 0.346, n: 2242, factor: 1 },
+  3: { mean: 0.252, n: 2033, factor: 0.729 },
+  4: { mean: 0.169, n: 1311, factor: 0.49 },
+  5: { mean: 0.071, n: 380, factor: 0.206 },
+}
+
 export function homeAwayMultiplier(home: boolean, enabled: boolean): number {
   if (!enabled) return 1
   return home ? 1.05 : 0.95

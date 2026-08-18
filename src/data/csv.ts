@@ -92,6 +92,14 @@ export function parseOptionalInt(value: string | undefined): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+export function parseOptionalFloat(value: string | undefined): number | null {
+  if (value == null || value === '' || value === 'None' || value === 'null') {
+    return null
+  }
+  const n = Number.parseFloat(value)
+  return Number.isFinite(n) ? n : null
+}
+
 export function parseBoolField(value: string | undefined): boolean {
   if (!value) return false
   const v = value.trim().toLowerCase()
