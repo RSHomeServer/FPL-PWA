@@ -1,17 +1,17 @@
 /**
- * Domain types for published FPL history.
+ * Domain types for published FPL history and the official live GW0 snapshot.
  *
  * Source kinds:
  * - `historical` — completed season snapshot from vaastav (stable cache)
  * - `current` — latest published season folder (short TTL; refresh after new GWs)
+ * - `live` — official FPL bootstrap + fixtures (short TTL; canonical GW0 prices)
  * - `user` — manager-specific squad/picks (unused; not ingested here)
  *
- * Official live API (not implemented): `fantasy.premierleague.com/api/bootstrap-static/`
- * and per-event live endpoints expose the same element/fixture ids and tenths-of-a-million
- * prices. A later ticket can implement `FplLiveSource` in `fplLiveSource.ts` without
- * changing these records.
+ * Official live API: `fantasy.premierleague.com/api/bootstrap-static/` and
+ * `/api/fixtures/`. Same element/fixture ids and tenths-of-a-million prices.
+ * Per-event live endpoints are look-ahead at GW0 and are not called.
  */
-export type FplSourceKind = 'historical' | 'current' | 'user'
+export type FplSourceKind = 'historical' | 'current' | 'live' | 'user'
 
 export type PlayerPosition = 'GK' | 'DEF' | 'MID' | 'FWD' | 'AM' | 'UNK'
 
@@ -119,4 +119,43 @@ export type SeasonSnapshot = {
   teams: FplTeam[]
   fixtures: FplFixture[]
   performances: FplPerformance[]
+}
+
+/** Official API availability / news fields needed at GW0. */
+export type FplLivePlayer = FplPlayer & {
+  teamCode: number
+  status: string
+  news: string
+  chanceOfPlayingThisRound: number | null
+  chanceOfPlayingNextRound: number | null
+  epNext: number | null
+  canSelect: boolean
+}
+
+export type FplLiveEvent = {
+  id: number
+  name: string
+  deadlineTime: string
+  isNext: boolean
+  isCurrent: boolean
+  finished: boolean
+}
+
+export type LiveCacheMeta = {
+  id: 'current'
+  seasonId: string
+  fetchedAt: number
+  playerCount: number
+  teamCount: number
+  fixtureCount: number
+  eventCount: number
+  nextEventId: number | null
+}
+
+export type FplLiveSnapshot = {
+  meta: LiveCacheMeta
+  players: FplLivePlayer[]
+  teams: FplTeam[]
+  fixtures: FplFixture[]
+  events: FplLiveEvent[]
 }

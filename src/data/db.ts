@@ -5,9 +5,12 @@ import {
 } from '@songara/pwa-base/preview/dexie'
 import type {
   FplFixture,
+  FplLiveEvent,
+  FplLivePlayer,
   FplPerformance,
   FplPlayer,
   FplTeam,
+  LiveCacheMeta,
   SeasonCacheMeta,
 } from './types'
 
@@ -25,6 +28,11 @@ export type FplCacheDb = ReturnType<typeof createSongaraDb> & {
   teams: Table<FplTeam>
   fixtures: Table<FplFixture>
   performances: Table<FplPerformance>
+  liveMeta: Table<LiveCacheMeta>
+  livePlayers: Table<FplLivePlayer>
+  liveTeams: Table<FplTeam>
+  liveFixtures: Table<FplFixture>
+  liveEvents: Table<FplLiveEvent>
 }
 
 let db: FplCacheDb | null = null
@@ -43,6 +51,16 @@ export function getFplCacheDb(): FplCacheDb {
           teams: '[seasonId+id], seasonId',
           fixtures: '[seasonId+id], seasonId, event',
           performances: '[seasonId+playerId+round+fixture], seasonId, playerId, round',
+        },
+      },
+      {
+        version: 2,
+        stores: {
+          liveMeta: 'id',
+          livePlayers: 'id, code, teamId',
+          liveTeams: 'id',
+          liveFixtures: 'id, event',
+          liveEvents: 'id',
         },
       },
     ],
