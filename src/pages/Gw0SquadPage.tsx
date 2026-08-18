@@ -42,6 +42,8 @@ import { positionPool, type PositionPool } from '../analysis/metrics'
 import { mergeRoleEvidence, parseRoleEvidenceSeed, roleEvidenceByCode } from '../analysis/roleEvidence'
 import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { FplPitch, type PitchPlayer } from '../components/FplPitch'
+import { Gw0MetricsExplainer } from '../components/Gw0MetricsExplainer'
+import { Gw0PoolCharts } from '../components/Gw0PoolCharts'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
 import {
   emptyGw0Pins,
@@ -325,6 +327,8 @@ export function Gw0SquadPage() {
           <code>m_sem</code>.
         </p>
       </div>
+
+      <Gw0MetricsExplainer />
 
       {infeasible ? (
         <p className="fpl-gw0-callout fpl-gw0-callout--error" role="alert">
@@ -653,6 +657,8 @@ function ReadyView({
     for (const [id, name] of teamShortByIdFromPlayers(lpPlayers)) map.set(id, name)
     return map
   }, [lpPlayers, teamShortById])
+  const shortCodes = useMemo(() => new Set(shortTerm.players.map((row) => row.code)), [shortTerm])
+  const longCodes = useMemo(() => new Set(longTerm.players.map((row) => row.code)), [longTerm])
 
   return (
     <Stack gap="lg">
@@ -672,6 +678,7 @@ function ReadyView({
           shorts={shorts}
         />
       </div>
+      <Gw0PoolCharts pool={lpPlayers} shortCodes={shortCodes} longCodes={longCodes} />
       <p className="fpl-explorer__meta">
         LP pool {lpPool} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs
         long-term {fmt(overlap.longGw1)} · short-term ΣGW1–6 {fmt(overlap.shortGw16)} vs long-term{' '}
@@ -899,7 +906,6 @@ function SquadPanel({
         formation={squad.formation}
         players={xi}
         bench={bench}
-        height={520}
         label={`${title} · ${squad.formation}`}
       />
       <ul className="fpl-gw0-stats">

@@ -7,17 +7,23 @@ export function PlayerPhoto({
   code,
   name,
   size = 32,
+  className,
 }: {
   code: number
   name: string
   size?: number
+  className?: string
 }) {
   const src = playerPhotoUrl(code)
   const [failed, setFailed] = useState(false)
 
   if (!src || failed) {
     return (
-      <span className="fpl-media fpl-media--fallback" style={{ width: size, height: size }} aria-hidden>
+      <span
+        className={['fpl-media', 'fpl-media--fallback', className].filter(Boolean).join(' ')}
+        style={{ width: size, height: size }}
+        aria-hidden
+      >
         {nameInitials(name)}
       </span>
     )
@@ -25,7 +31,7 @@ export function PlayerPhoto({
 
   return (
     <img
-      className="fpl-media"
+      className={['fpl-media', className].filter(Boolean).join(' ')}
       src={src}
       alt=""
       width={size}
@@ -42,10 +48,12 @@ export function TeamCrest({
   code,
   name,
   size = 20,
+  className,
 }: {
   code: number
   name: string
   size?: number
+  className?: string
 }) {
   const src = teamCrestUrl(code)
   const [failed, setFailed] = useState(false)
@@ -53,7 +61,11 @@ export function TeamCrest({
 
   if (!src || failed) {
     return (
-      <span className="fpl-media fpl-media--crest-fallback" style={{ minWidth: size }} aria-hidden>
+      <span
+        className={['fpl-media', 'fpl-media--crest-fallback', className].filter(Boolean).join(' ')}
+        style={{ minWidth: size }}
+        aria-hidden
+      >
         {fallback}
       </span>
     )
@@ -61,7 +73,7 @@ export function TeamCrest({
 
   return (
     <img
-      className="fpl-media fpl-media--crest"
+      className={['fpl-media', 'fpl-media--crest', className].filter(Boolean).join(' ')}
       src={src}
       alt=""
       width={size}

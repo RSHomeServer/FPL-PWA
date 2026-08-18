@@ -1,4 +1,4 @@
-import { ShirtImage } from './FplMedia'
+import { PlayerPhoto, TeamCrest } from './FplMedia'
 import {
   parsePitchFormation,
   pitchLineOf,
@@ -91,7 +91,6 @@ export function FplPitch({
 }
 
 function PitchCard({ player }: { player: PitchPlayer }) {
-  const keeper = pitchLineOf(player.position) === 'GK'
   return (
     <figure className="fpl-pitch-card">
       {player.captain ? (
@@ -103,13 +102,20 @@ function PitchCard({ player }: { player: PitchPlayer }) {
           V
         </span>
       ) : null}
-      <ShirtImage
-        className="fpl-pitch-card__shirt"
-        teamCode={player.teamCode ?? 0}
-        name={player.name}
-        keeper={keeper}
-        size={56}
-      />
+      <span className="fpl-pitch-card__media">
+        <PlayerPhoto
+          className="fpl-pitch-card__face"
+          code={player.photoCode ?? 0}
+          name={player.name}
+          size={48}
+        />
+        <TeamCrest
+          className="fpl-pitch-card__crest"
+          code={player.teamCode ?? 0}
+          name={player.teamShortName || player.name}
+          size={16}
+        />
+      </span>
       <figcaption className="fpl-pitch-card__plate">
         <span className="fpl-pitch-card__name">{player.name}</span>
         {player.fixture ? <span className="fpl-pitch-card__fixture">{player.fixture}</span> : null}

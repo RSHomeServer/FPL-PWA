@@ -26,8 +26,8 @@
 .fpl-pitch__field {
   position: relative;
   flex: 1 1 auto;
-  min-height: 22rem;
-  overflow: hidden;
+  min-height: 24rem;
+  overflow: visible;
   border-radius: 0.35rem;
   background:
     repeating-linear-gradient(
@@ -67,12 +67,13 @@
   flex-direction: column;
   justify-content: space-evenly;
   height: 100%;
-  padding: 0.55rem 0.4rem 0.7rem;
+  min-height: 24rem;
+  padding: 0.7rem 0.4rem 1.1rem;
 }
 
 .fpl-pitch__row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: flex-end;
   gap: clamp(0.3rem, 1.8vw, 1.1rem);
@@ -83,7 +84,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: clamp(3.6rem, 14%, 5.4rem);
+  width: clamp(3.8rem, 16%, 5.6rem);
   margin: 0;
 }
 
@@ -94,11 +95,29 @@
   background: rgb(255 255 255 / 8%);
 }
 
-.fpl-pitch-card__shirt {
+.fpl-pitch-card__media {
+  position: relative;
   display: block;
-  width: 72%;
-  height: auto;
-  filter: drop-shadow(0 0.2rem 0.25rem rgb(0 0 0 / 35%));
+  width: 3rem;
+  height: 3rem;
+}
+
+.fpl-pitch-card__face {
+  width: 3rem;
+  height: 3rem;
+  border: 2px solid rgb(255 255 255 / 85%);
+  box-shadow: 0 0.15rem 0.3rem rgb(0 0 0 / 35%);
+}
+
+.fpl-pitch-card__crest {
+  position: absolute;
+  right: -0.15rem;
+  bottom: -0.1rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  background: #fff;
+  border-radius: 0.15rem;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 18%);
 }
 
 .fpl-pitch-card__badge {
