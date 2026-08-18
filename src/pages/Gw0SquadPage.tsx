@@ -1,8 +1,9 @@
-import { Button, Label, Select, Spinner, Stack } from '@songara/pwa-base/ui'
-import { useEffect, useMemo, useState } from 'react'
+import { Button, Label, Select, Spinner, Stack, TextField } from '@songara/pwa-base/ui'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import seedFile from '../analysis/gw0RoleEvidence.seed.json'
 import bandsFile from '../analysis/gw0Phase0Bands.json'
+import { CAPTAIN_HINT, suggestCaptainForSquad, type CaptainSuggestion } from '../analysis/gw0Captain'
 import { buildGw0OptimiserPool, GW0_PRIOR_SEASON_ID } from '../analysis/gw0Build'
 import {
   asPhase0Bands,
@@ -25,39 +26,74 @@ import {
   assembleSquad,
   DEFAULT_FORMATION,
   FORMATION_IDS,
+  fixtureCliff,
+  isSquadInfeasibleError,
   overlapDiffs,
   playerAuditLine,
   type FormationId,
+  type LpCandidate,
   type OrderedSquad,
   type SquadOverlap,
+  type SquadPins,
 } from '../analysis/gw0Squad'
-import { GW0_SOLVER_NOTE, solveBothObjectives } from '../analysis/gw0Solver'
+import { GW0_SOLVER_NOTE, solveSquadObjective } from '../analysis/gw0Solver'
 import { loadedSeasonFromSnapshot } from '../analysis/loadSeason'
-import { positionPool } from '../analysis/metrics'
+import { positionPool, type PositionPool } from '../analysis/metrics'
 import { mergeRoleEvidence, parseRoleEvidenceSeed, roleEvidenceByCode } from '../analysis/roleEvidence'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
+import {
+  emptyGw0Pins,
+  pinsWithExclude,
+  pinsWithLock,
+  pinsWithoutCode,
+  readGw0SquadPins,
+  writeGw0SquadPins,
+} from '../data/gw0PinStore'
 import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
 import { formatGbpFromTenths, poundsFromTenths } from '../data/prices'
 import { readStoredRoleEvidence } from '../data/roleEvidenceStore'
-import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
+import type { Gw0PinScope, Gw0SquadPinsRecord } from '../data/types'
+import { DataTable, ExplorerEmpty, ExplorerScreen, HintedValue } from './ExplorerScreen'
 import type { Gw0Projection } from '../analysis/gw0Project'
 
 const PHASE0_BANDS = asPhase0Bands(bandsFile)
+const PIN_DEBOUNCE_MS = 400
 
-type SolveState =
-  | { status: 'loading'; message: string }
-  | {
-      status: 'ready'
-      shortTerm: OrderedSquad
-      longTerm: OrderedSquad
-      overlap: SquadOverlap
-      lpPool: number
-      lpPlayers: Gw0Projection[]
-      solvedAt: string
-    }
-  | { status: 'error'; message: string }
+const HINT = {
+  role: 'XI or bench order. The remaining goalkeeper is last on the bench so FPL auto-subs a keeper only if your starter does not play.',
+  player: 'Official web_name from the live GW0 snapshot.',
+  pos: 'FPL position pooled to GK / DEF / MID / FWD (AM counts as MID).',
+  club: 'Club short name. Max 3 players per club in a 15.',
+  price: 'Official now_cost in tenths of a million. Budget is £100.0m.',
+  gw1: 'Our as-of-GW0 expected FPL points in GW1. Phase 0 RMSE is about 2.7 pts per player — these are candidates, not a unique best team.',
+  gw16: 'Sum of independent as-of-GW0 expected points for GW1–GW6. Horizon projections do not condition on post-GW1 events.',
+  conf: 'Confidence from minutes sample, external flags, and club stability. Not a second expected-points number.',
+  epNext: 'Official FPL ep_next. Reference only — the optimiser does not use it. RMSE on our EP is still about 2.7.',
+  delta: 'Our E[pts GW1] minus official ep_next. Not used by the solver.',
+  fdr: 'Official fixture difficulty of this player’s GW1 opponent(s).',
+  mins: 'Expected GW1 minutes after start-rate, RoleEvidence m_sem, and fitness.',
+  club3: 'This club already uses the maximum of 3 in this 15.',
+  cliff: 'Two or more FDR 4–5 fixtures in GW4–6.',
+  captain: CAPTAIN_HINT,
+  pin: 'Lock forces x_p = 1 (must be in the 15). Exclude forces x_p = 0 (cannot be in the 15). Neither leaves the optimiser free.',
+  audit: 'Reconstructable GW1 expected-points line (minutes, FDR, m_sem, fitness). Expand or focus for the full audit.',
+}
 
-async function loadGw0Squads(nextFormation: FormationId, force: boolean) {
+type ReadyBits = {
+  shortTerm: OrderedSquad
+  longTerm: OrderedSquad
+  overlap: SquadOverlap
+  candidates: LpCandidate[]
+  lpPlayers: Gw0Projection[]
+  solvedAt: string
+}
+
+type PageState =
+  | { status: 'loading'; message: string; ready: ReadyBits | null }
+  | { status: 'ready'; ready: ReadyBits; infeasible: string | null }
+  | { status: 'error'; message: string; ready: ReadyBits | null }
+
+async function loadGw0Pool(force: boolean): Promise<{ candidates: LpCandidate[]; lpPlayers: Gw0Projection[] }> {
   const seed = parseRoleEvidenceSeed(seedFile)
   const stored = await readStoredRoleEvidence()
   const evidenceByCode = roleEvidenceByCode(mergeRoleEvidence(seed, stored))
@@ -72,44 +108,141 @@ async function loadGw0Squads(nextFormation: FormationId, force: boolean) {
     throw new Error(`Vaastav ${GW0_PRIOR_SEASON_ID} merged_gw is required for GW0 priors`)
   }
   const pool = buildGw0OptimiserPool(live, prior, evidenceByCode)
-  const { shortTerm, longTerm } = await solveBothObjectives(pool.candidates, nextFormation)
   return {
-    shortTerm,
-    longTerm,
-    overlap: overlapDiffs(shortTerm.players, longTerm.players),
-    lpPool: pool.candidates.length,
+    candidates: pool.candidates,
     lpPlayers: pool.candidates.map((row) => row.projection),
-    solvedAt: new Date().toISOString(),
   }
 }
 
 export function Gw0SquadPage() {
   const [formation, setFormation] = useState<FormationId>(DEFAULT_FORMATION)
-  const [state, setState] = useState<SolveState>({ status: 'loading', message: 'Loading live prices and 2025/26 priors…' })
+  const [pins, setPins] = useState<Gw0SquadPinsRecord>(emptyGw0Pins())
+  const [state, setState] = useState<PageState>({
+    status: 'loading',
+    message: 'Loading live prices and 2025/26 priors…',
+    ready: null,
+  })
+  const debounceRef = useRef<number | null>(null)
+  const formationRef = useRef(formation)
+  const readyRef = useRef<ReadyBits | null>(null)
+  const solveGen = useRef(0)
+
+  useEffect(() => {
+    formationRef.current = formation
+  }, [formation])
+
+  useEffect(() => {
+    readyRef.current = state.ready
+  }, [state.ready])
+
+  async function runSolve(options: {
+    nextFormation: FormationId
+    nextPins: Gw0SquadPinsRecord
+    force: boolean
+    previous: ReadyBits | null
+  }) {
+    const { nextFormation, nextPins, force, previous } = options
+    const gen = ++solveGen.current
+    setState({
+      status: 'loading',
+      message: force ? 'Re-solving from live data…' : 'Re-solving with current locks/excludes…',
+      ready: previous,
+    })
+    try {
+      const pool =
+        force || !previous ? await loadGw0Pool(force) : { candidates: previous.candidates, lpPlayers: previous.lpPlayers }
+      const emptyPins: SquadPins = { lockedCodes: [], excludedCodes: [] }
+      const shortPins = nextPins.scope === 'longTerm' ? emptyPins : nextPins
+      const longPins = nextPins.scope === 'shortTerm' ? emptyPins : nextPins
+      const short = await settleObjective(pool.candidates, 'shortTerm', nextFormation, shortPins)
+      const long = await settleObjective(pool.candidates, 'longTerm', nextFormation, longPins)
+      if (gen !== solveGen.current) return
+      const shortTerm = short.squad ?? previous?.shortTerm ?? null
+      const longTerm = long.squad ?? previous?.longTerm ?? null
+      const failures = [short.error, long.error].filter((row): row is string => Boolean(row))
+      if (!shortTerm || !longTerm) {
+        setState({
+          status: 'error',
+          message: failures.join(' ') || 'GW0 solver failed',
+          ready: previous,
+        })
+        return
+      }
+      const ready: ReadyBits = {
+        shortTerm,
+        longTerm,
+        overlap: overlapDiffs(shortTerm.players, longTerm.players),
+        candidates: pool.candidates,
+        lpPlayers: pool.lpPlayers,
+        solvedAt: new Date().toISOString(),
+      }
+      setState({
+        status: 'ready',
+        ready,
+        infeasible: failures.length ? failures.join(' ') : null,
+      })
+    } catch (cause) {
+      if (gen !== solveGen.current) return
+      setState({
+        status: 'error',
+        message: cause instanceof Error ? cause.message : 'GW0 solver failed',
+        ready: previous,
+      })
+    }
+  }
 
   useEffect(() => {
     void (async () => {
+      let stored: Gw0SquadPinsRecord
       try {
-        const result = await loadGw0Squads(DEFAULT_FORMATION, false)
-        setState({ status: 'ready', ...result })
-      } catch (cause) {
-        setState({
-          status: 'error',
-          message: cause instanceof Error ? cause.message : 'GW0 solver failed',
-        })
+        stored = await readGw0SquadPins()
+      } catch {
+        stored = emptyGw0Pins()
       }
+      setPins(stored)
+      await runSolve({
+        nextFormation: DEFAULT_FORMATION,
+        nextPins: stored,
+        force: false,
+        previous: null,
+      })
     })()
+    return () => {
+      if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
+    }
   }, [])
 
   function changeFormation(next: FormationId) {
     setFormation(next)
     setState((current) => {
-      if (current.status !== 'ready') return current
-      const shortTerm = assembleSquad(current.shortTerm.players, 'shortTerm', next)
-      const longTerm = assembleSquad(current.longTerm.players, 'longTerm', next)
-      return { ...current, shortTerm, longTerm }
+      if (!current.ready) return current
+      const shortTerm = assembleSquad(current.ready.shortTerm.players, 'shortTerm', next)
+      const longTerm = assembleSquad(current.ready.longTerm.players, 'longTerm', next)
+      return { ...current, ready: { ...current.ready, shortTerm, longTerm } }
     })
   }
+
+  function scheduleSolve(nextPins: Gw0SquadPinsRecord) {
+    if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
+    debounceRef.current = window.setTimeout(() => {
+      void runSolve({
+        nextFormation: formationRef.current,
+        nextPins,
+        force: false,
+        previous: readyRef.current,
+      })
+    }, PIN_DEBOUNCE_MS)
+  }
+
+  async function commitPins(next: Gw0SquadPinsRecord) {
+    setPins(next)
+    await writeGw0SquadPins(next)
+    scheduleSolve(next)
+  }
+
+  const ready = state.ready
+  const infeasible = state.status === 'ready' ? state.infeasible : null
+  const solving = state.status === 'loading'
 
   return (
     <ExplorerScreen
@@ -138,7 +271,7 @@ export function Gw0SquadPage() {
           <Select
             value={formation}
             onChange={(event) => changeFormation(event.target.value as FormationId)}
-            disabled={state.status === 'loading'}
+            disabled={solving && !ready}
           >
             {FORMATION_IDS.map((id) => (
               <option key={id} value={id}>
@@ -151,42 +284,82 @@ export function Gw0SquadPage() {
         <Button
           variant="primary"
           onClick={() => {
-            setState({ status: 'loading', message: 'Re-solving…' })
-            void loadGw0Squads(formation, true)
-              .then((result) => setState({ status: 'ready', ...result }))
-              .catch((cause: unknown) =>
-                setState({
-                  status: 'error',
-                  message: cause instanceof Error ? cause.message : 'GW0 solver failed',
-                }),
-              )
+            void runSolve({
+              nextFormation: formation,
+              nextPins: pins,
+              force: true,
+              previous: ready,
+            })
           }}
-          disabled={state.status === 'loading'}
+          disabled={solving}
         >
-          Re-solve
+          Recompute
         </Button>
         <p className="fpl-explorer__meta">
           <Link to="/gw0-flags">Edit minutes evidence</Link>
-          {' '}then re-solve. Seed + Dexie overlay feed <code>m_sem</code>.
+          {' — minutes flags change '}
+          <code>m_sem</code>
+          {'; lock/exclude change the LP. Seed + Dexie overlay feed '}
+          <code>m_sem</code>.
         </p>
       </div>
 
-      {state.status === 'loading' ? <Spinner label={state.message} /> : null}
-      {state.status === 'error' ? (
+      {infeasible ? (
+        <p className="fpl-gw0-callout fpl-gw0-callout--error" role="alert">
+          <strong>Could not apply the current locks/excludes.</strong> Locks were not dropped.
+          Previous feasible squads stay on screen. {infeasible}
+        </p>
+      ) : null}
+
+      {solving ? <Spinner label={state.message} /> : null}
+
+      {state.status === 'error' && !ready ? (
         <ExplorerEmpty title="Could not build squads" description={state.message} />
       ) : null}
-      {state.status === 'ready' ? (
-        <ReadyView
-          shortTerm={state.shortTerm}
-          longTerm={state.longTerm}
-          overlap={state.overlap}
-          lpPool={state.lpPool}
-          lpPlayers={state.lpPlayers}
-          solvedAt={state.solvedAt}
-        />
+
+      {ready ? (
+        <Stack gap="lg">
+          <PinPanel
+            pins={pins}
+            lpPlayers={ready.lpPlayers}
+            disabled={solving}
+            onChange={(next) => {
+              void commitPins(next)
+            }}
+          />
+          <ReadyView
+            shortTerm={ready.shortTerm}
+            longTerm={ready.longTerm}
+            overlap={ready.overlap}
+            lpPool={ready.lpPlayers.length}
+            lpPlayers={ready.lpPlayers}
+            solvedAt={ready.solvedAt}
+            pins={pins}
+          />
+        </Stack>
       ) : null}
     </ExplorerScreen>
   )
+}
+
+async function settleObjective(
+  candidates: readonly LpCandidate[],
+  objective: 'shortTerm' | 'longTerm',
+  formation: FormationId,
+  pins: SquadPins,
+): Promise<{ squad: OrderedSquad | null; error: string | null }> {
+  try {
+    const squad = await solveSquadObjective(candidates, objective, formation, pins)
+    return { squad, error: null }
+  } catch (cause) {
+    if (isSquadInfeasibleError(cause)) {
+      return { squad: null, error: `${objective}: ${cause.message}` }
+    }
+    return {
+      squad: null,
+      error: `${objective}: ${cause instanceof Error ? cause.message : 'solver failed'}`,
+    }
+  }
 }
 
 function RmseBandsPanel({ bands }: { bands: Gw0Phase0Bands }) {
@@ -228,6 +401,204 @@ function RmseBandsPanel({ bands }: { bands: Gw0Phase0Bands }) {
   )
 }
 
+function PinPanel({
+  pins,
+  lpPlayers,
+  disabled,
+  onChange,
+}: {
+  pins: Gw0SquadPinsRecord
+  lpPlayers: Gw0Projection[]
+  disabled: boolean
+  onChange: (next: Gw0SquadPinsRecord) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [pos, setPos] = useState<'ALL' | PositionPool>('ALL')
+  const byCode = useMemo(() => new Map(lpPlayers.map((row) => [row.code, row])), [lpPlayers])
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return lpPlayers.filter((row) => {
+      if (pos !== 'ALL' && positionPool(row.position) !== pos) return false
+      if (!needle) return true
+      const hay = `${row.current.webName} ${row.current.secondName} ${row.teamShortName} ${positionPool(row.position)} ${row.code}`
+      return hay.toLowerCase().includes(needle)
+    })
+  }, [lpPlayers, pos, query])
+
+  return (
+    <section className="fpl-gw0-pins">
+      <h2 className="fpl-explorer__title">Lock / exclude</h2>
+      <p className="fpl-explorer__meta">
+        Pins apply to the LP pool (~{lpPlayers.length} players), not only the current 15. Search by
+        name, club, or position. {HINT.pin}
+      </p>
+      <div className="fpl-explorer__toolbar">
+        <Label className="fpl-explorer__field">
+          Apply lock/exclude to
+          <Select
+            value={pins.scope}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange({ ...pins, scope: event.target.value as Gw0PinScope, updatedAt: Date.now() })
+            }
+          >
+            <option value="both">Both squads</option>
+            <option value="shortTerm">Short-term only</option>
+            <option value="longTerm">Long-term only</option>
+          </Select>
+        </Label>
+        <Label className="fpl-explorer__field">
+          Search LP pool
+          <TextField
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Name, club, or position"
+            disabled={disabled}
+          />
+        </Label>
+        <Label className="fpl-explorer__field">
+          Position
+          <Select value={pos} disabled={disabled} onChange={(event) => setPos(event.target.value as 'ALL' | PositionPool)}>
+            <option value="ALL">All</option>
+            <option value="GK">GK</option>
+            <option value="DEF">DEF</option>
+            <option value="MID">MID</option>
+            <option value="FWD">FWD</option>
+          </Select>
+        </Label>
+      </div>
+      <div className="fpl-gw0-chip-row">
+        <span className="fpl-explorer__meta">Locked:</span>
+        {pins.lockedCodes.length === 0 ? <span className="fpl-explorer__meta">none</span> : null}
+        {pins.lockedCodes.map((code) => (
+          <Button
+            key={`lock-${code}`}
+            className="fpl-gw0-chip"
+            size="sm"
+            disabled={disabled}
+            onClick={() => onChange(pinsWithoutCode(pins, code))}
+          >
+            {byCode.get(code)?.current.webName ?? `code ${code}`} ×
+          </Button>
+        ))}
+        {pins.lockedCodes.length ? (
+          <Button disabled={disabled} onClick={() => onChange({ ...pins, lockedCodes: [], updatedAt: Date.now() })}>
+            Clear locks
+          </Button>
+        ) : null}
+      </div>
+      <div className="fpl-gw0-chip-row">
+        <span className="fpl-explorer__meta">Excluded:</span>
+        {pins.excludedCodes.length === 0 ? <span className="fpl-explorer__meta">none</span> : null}
+        {pins.excludedCodes.map((code) => (
+          <Button
+            key={`excl-${code}`}
+            className="fpl-gw0-chip"
+            size="sm"
+            disabled={disabled}
+            onClick={() => onChange(pinsWithoutCode(pins, code))}
+          >
+            {byCode.get(code)?.current.webName ?? `code ${code}`} ×
+          </Button>
+        ))}
+        {pins.excludedCodes.length ? (
+          <Button disabled={disabled} onClick={() => onChange({ ...pins, excludedCodes: [], updatedAt: Date.now() })}>
+            Clear excludes
+          </Button>
+        ) : null}
+      </div>
+      <DataTable
+        caption="LP pool — lock or exclude for the next solve"
+        defaultSort={{ id: 'gw1', direction: 'desc' }}
+        columns={[
+          {
+            id: 'player',
+            label: 'Player',
+            hint: HINT.player,
+            sortValue: (row) => row.current.webName,
+            render: (row) => row.current.webName,
+          },
+          {
+            id: 'pos',
+            label: 'Pos',
+            hint: HINT.pos,
+            sortValue: (row) => positionPool(row.position),
+            render: (row) => positionPool(row.position),
+          },
+          {
+            id: 'club',
+            label: 'Club',
+            hint: HINT.club,
+            sortValue: (row) => row.teamShortName,
+            render: (row) => row.teamShortName,
+          },
+          {
+            id: 'price',
+            label: 'Price',
+            hint: HINT.price,
+            sortValue: (row) => row.nowCostTenths,
+            render: (row) => formatGbpFromTenths(row.nowCostTenths),
+          },
+          {
+            id: 'gw1',
+            label: 'E GW1',
+            hint: HINT.gw1,
+            sortValue: (row) => row.ePtsGw1,
+            render: (row) => (
+              <HintedValue hint={HINT.gw1}>{fmt(row.ePtsGw1)}</HintedValue>
+            ),
+          },
+          {
+            id: 'pin',
+            label: 'Pin',
+            hint: HINT.pin,
+            sortValue: (row) => pinStatus(pins, row.code),
+            render: (row) => pinStatus(pins, row.code) || '—',
+          },
+          {
+            id: 'actions',
+            label: 'Lock / exclude',
+            hint: HINT.pin,
+            render: (row) => (
+              <span className="fpl-gw0-actions">
+                <Button
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() =>
+                    onChange(
+                      pinStatus(pins, row.code) === 'lock'
+                        ? pinsWithoutCode(pins, row.code)
+                        : pinsWithLock(pins, row.code),
+                    )
+                  }
+                >
+                  {pinStatus(pins, row.code) === 'lock' ? 'Unlock' : 'Lock'}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() =>
+                    onChange(
+                      pinStatus(pins, row.code) === 'exclude'
+                        ? pinsWithoutCode(pins, row.code)
+                        : pinsWithExclude(pins, row.code),
+                    )
+                  }
+                >
+                  {pinStatus(pins, row.code) === 'exclude' ? 'Include' : 'Exclude'}
+                </Button>
+              </span>
+            ),
+          },
+        ]}
+        rows={visible}
+        empty={query.trim() || pos !== 'ALL' ? 'No LP-pool players match that search.' : 'LP pool is empty.'}
+        rowKey={(row) => row.code}
+      />
+    </section>
+  )
+}
+
 function ReadyView({
   shortTerm,
   longTerm,
@@ -235,6 +606,7 @@ function ReadyView({
   lpPool,
   lpPlayers,
   solvedAt,
+  pins,
 }: {
   shortTerm: OrderedSquad
   longTerm: OrderedSquad
@@ -242,10 +614,13 @@ function ReadyView({
   lpPool: number
   lpPlayers: Gw0Projection[]
   solvedAt: string
+  pins: Gw0SquadPinsRecord
 }) {
   const disagreements = useMemo(() => largestEpNextDisagreements(lpPlayers), [lpPlayers])
   const shortEp = summariseEpNext(shortTerm.players)
   const longEp = summariseEpNext(longTerm.players)
+  const shortCaptain = suggestCaptainForSquad(shortTerm)
+  const longCaptain = suggestCaptainForSquad(longTerm)
 
   return (
     <Stack gap="lg">
@@ -275,9 +650,16 @@ function ReadyView({
         </p>
       </div>
       <DisagreementsPanel rows={disagreements} lpPool={lpPool} />
-      <ExportBar shortTerm={shortTerm} longTerm={longTerm} solvedAt={solvedAt} />
-      <SquadPanel title="Short-term 15" blurb="Max expected GW1 points." squad={shortTerm} />
-      <SquadPanel title="Long-term 15" blurb="Max equal-weight expected GW1–GW6 points." squad={longTerm} />
+      <ExportBar
+        shortTerm={shortTerm}
+        longTerm={longTerm}
+        solvedAt={solvedAt}
+        pins={pins}
+        shortCaptain={shortCaptain}
+        longCaptain={longCaptain}
+      />
+      <SquadPanel title="Short-term 15" blurb="Max expected GW1 points." squad={shortTerm} captain={shortCaptain} />
+      <SquadPanel title="Long-term 15" blurb="Max equal-weight expected GW1–GW6 points." squad={longTerm} captain={longCaptain} />
     </Stack>
   )
 }
@@ -303,44 +685,49 @@ function DisagreementsPanel({
           {
             id: 'player',
             label: 'Player',
+            hint: HINT.player,
             sortValue: (row) => row.webName,
             render: (row) => row.webName,
           },
           {
             id: 'pos',
             label: 'Pos',
+            hint: HINT.pos,
             sortValue: (row) => row.position,
             render: (row) => row.position,
           },
           {
             id: 'club',
             label: 'Club',
+            hint: HINT.club,
             sortValue: (row) => row.teamShortName,
             render: (row) => row.teamShortName,
           },
           {
             id: 'gw1',
             label: 'E GW1',
+            hint: HINT.gw1,
             sortValue: (row) => row.ePtsGw1,
-            render: (row) => fmt(row.ePtsGw1),
+            render: (row) => <HintedValue hint={HINT.gw1}>{fmt(row.ePtsGw1)}</HintedValue>,
           },
           {
             id: 'epnext',
             label: 'ep_next',
-            hint: 'FPL reference column only — not the objective.',
+            hint: HINT.epNext,
             sortValue: (row) => row.epNext,
-            render: (row) => fmt(row.epNext),
+            render: (row) => <HintedValue hint={HINT.epNext}>{fmt(row.epNext)}</HintedValue>,
           },
           {
             id: 'delta',
             label: 'Δ',
-            hint: 'Our E[pts GW1] minus official ep_next.',
+            hint: HINT.delta,
             sortValue: (row) => row.delta,
-            render: (row) => formatSigned(row.delta),
+            render: (row) => <HintedValue hint={HINT.delta}>{formatSigned(row.delta)}</HintedValue>,
           },
           {
             id: 'abs',
             label: '|Δ|',
+            hint: HINT.delta,
             sortValue: (row) => row.absDelta,
             render: (row) => row.absDelta.toFixed(2),
           },
@@ -357,15 +744,30 @@ function ExportBar({
   shortTerm,
   longTerm,
   solvedAt,
+  pins,
+  shortCaptain,
+  longCaptain,
 }: {
   shortTerm: OrderedSquad
   longTerm: OrderedSquad
   solvedAt: string
+  pins: Gw0SquadPinsRecord
+  shortCaptain: CaptainSuggestion
+  longCaptain: CaptainSuggestion
 }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const payload = useMemo(
-    () => buildGw0ExportPayload(shortTerm, longTerm, solvedAt),
-    [shortTerm, longTerm, solvedAt],
+    () =>
+      buildGw0ExportPayload(shortTerm, longTerm, solvedAt, {
+        pins: {
+          lockedCodes: pins.lockedCodes,
+          excludedCodes: pins.excludedCodes,
+          scope: pins.scope,
+        },
+        shortCaptain,
+        longCaptain,
+      }),
+    [shortTerm, longTerm, solvedAt, pins, shortCaptain, longCaptain],
   )
   const json = useMemo(() => gw0ExportJson(payload), [payload])
   const csv = useMemo(() => gw0ExportCsv(payload), [payload])
@@ -373,8 +775,8 @@ function ExportBar({
   return (
     <div className="fpl-gw0-export">
       <p className="fpl-explorer__meta">
-        Export both 15s (XI, bench, prices, E GW1, E GW1–6, remaining budget, formation, generated-at).
-        Client-side only.
+        Export both 15s (XI, bench, prices, E GW1, E GW1–6, remaining budget, formation, generated-at,
+        lock/exclude sets, captain suggestion). Client-side only.
       </p>
       <div className="fpl-explorer__toolbar">
         <Button
@@ -405,7 +807,17 @@ function ExportBar({
   )
 }
 
-function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squad: OrderedSquad }) {
+function SquadPanel({
+  title,
+  blurb,
+  squad,
+  captain,
+}: {
+  title: string
+  blurb: string
+  squad: OrderedSquad
+  captain: CaptainSuggestion
+}) {
   const d = squad.diagnostics
   const clubs = d.clubs
     .filter((row) => row.n >= 2)
@@ -417,6 +829,7 @@ function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squ
       : d.cliffs.map((row) => `${row.player.current.webName} (${row.cliff.detail})`).join('; ')
   const xiCodes = new Set(squad.xi.map((row) => row.code))
   const ep = summariseEpNext(squad.players)
+  const clubCount = new Map(d.clubs.map((row) => [row.teamId, row]))
 
   return (
     <section className="fpl-gw0-squad">
@@ -435,94 +848,166 @@ function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squ
         </li>
         <li>Bench (outfield by GW1 EP, GK last): {names(squad.bench)}</li>
         <li>
+          <HintedValue hint={HINT.captain}>
+            Captain {captain.captain.current.webName} ({fmt(captain.captain.ePtsGw1)} E GW1, doubled{' '}
+            {fmt(captain.captainDoubledGw1)}) · vice {captain.vice.current.webName} · Σ GW1 with captain{' '}
+            {fmt(captain.squadGw1WithCaptain)}
+          </HintedValue>
+        </li>
+        {captain.tossUp ? <li>Captain toss-up: {captain.tossUpDetail}</li> : null}
+        <li>
           Σ ep_next {fmt(ep.epNextSum)} vs Σ E GW1 {fmt(ep.ourGw1Compared)}
           {ep.delta == null ? '' : ` (${formatSigned(ep.delta)})`}
           {ep.missing ? ` · ${ep.missing} missing` : ''} — reference only
         </li>
       </ul>
       <DataTable
-        caption={`${title} — names, position, club, price, expected points, confidence`}
+        caption={`${title} — pick role, stats, captain suggestion, and GW1 audit`}
         defaultSort={{ id: 'role', direction: 'asc' }}
+        rowClassName={(row) =>
+          row.code === captain.captain.code
+            ? 'fpl-gw0-row--captain'
+            : row.code === captain.vice.code
+              ? 'fpl-gw0-row--vice'
+              : undefined
+        }
         columns={[
+          {
+            id: 'role',
+            label: 'XI / bench',
+            hint: HINT.role,
+            sortValue: (row) => (xiCodes.has(row.code) ? 0 : 10 + squad.bench.findIndex((item) => item.code === row.code)),
+            render: (row) => (
+              <HintedValue hint={HINT.role}>{roleLabel(row, squad, xiCodes)}</HintedValue>
+            ),
+          },
           {
             id: 'player',
             label: 'Player',
+            hint: HINT.player,
             sortValue: (row) => row.current.webName,
             render: (row) => row.current.webName,
           },
           {
             id: 'pos',
             label: 'Pos',
+            hint: HINT.pos,
             sortValue: (row) => positionPool(row.position),
             render: (row) => positionPool(row.position),
           },
           {
             id: 'club',
             label: 'Club',
+            hint: HINT.club,
             sortValue: (row) => row.teamShortName,
             render: (row) => row.teamShortName,
           },
           {
             id: 'price',
             label: 'Price',
-            hint: 'Official now_cost in tenths of a million.',
+            hint: HINT.price,
             sortValue: (row) => row.nowCostTenths,
-            render: (row) => formatGbpFromTenths(row.nowCostTenths),
+            render: (row) => (
+              <HintedValue hint={HINT.price}>{formatGbpFromTenths(row.nowCostTenths)}</HintedValue>
+            ),
           },
           {
             id: 'gw1',
             label: 'E GW1',
+            hint: HINT.gw1,
             sortValue: (row) => row.ePtsGw1,
-            render: (row) => fmt(row.ePtsGw1),
+            render: (row) => <HintedValue hint={HINT.gw1}>{fmt(row.ePtsGw1)}</HintedValue>,
           },
           {
             id: 'gw16',
             label: 'E GW1–6',
+            hint: HINT.gw16,
             sortValue: (row) => row.ePtsGw16,
-            render: (row) => fmt(row.ePtsGw16),
+            render: (row) => <HintedValue hint={HINT.gw16}>{fmt(row.ePtsGw16)}</HintedValue>,
           },
           {
             id: 'conf',
             label: 'Conf',
+            hint: HINT.conf,
             sortValue: (row) => row.confidence.label,
-            render: (row) => row.confidence.label,
+            render: (row) => <HintedValue hint={HINT.conf}>{row.confidence.label}</HintedValue>,
           },
           {
             id: 'epnext',
             label: 'ep_next',
-            hint: 'FPL reference column only — not the objective.',
+            hint: HINT.epNext,
             sortValue: (row) => row.epNext ?? -1,
-            render: (row) => (row.epNext == null ? '—' : fmt(row.epNext)),
+            render: (row) => (
+              <HintedValue hint={HINT.epNext}>{row.epNext == null ? '—' : fmt(row.epNext)}</HintedValue>
+            ),
           },
           {
             id: 'delta',
             label: 'Δ vs ep_next',
-            hint: 'Our E[pts GW1] minus official ep_next. Not used by the solver.',
+            hint: HINT.delta,
             sortValue: (row) => epNextDelta(row.ePtsGw1, row.epNext) ?? -999,
             render: (row) => {
               const delta = epNextDelta(row.ePtsGw1, row.epNext)
-              return delta == null ? '—' : formatSigned(delta)
+              return <HintedValue hint={HINT.delta}>{delta == null ? '—' : formatSigned(delta)}</HintedValue>
             },
           },
           {
-            id: 'eppm',
-            label: 'EPPM',
-            hint: 'Diagnostic pts per £m. Not maximised.',
-            sortValue: (row) => row.eppmGw1,
-            render: (row) => fmt(row.eppmGw1),
+            id: 'captain',
+            label: 'C / V',
+            hint: HINT.captain,
+            sortValue: (row) => (row.code === captain.captain.code ? 0 : row.code === captain.vice.code ? 1 : 2),
+            render: (row) => (
+              <HintedValue hint={HINT.captain}>
+                {row.code === captain.captain.code ? (
+                  <span className="fpl-gw0-captain-mark">C</span>
+                ) : row.code === captain.vice.code ? (
+                  'V'
+                ) : (
+                  '—'
+                )}
+              </HintedValue>
+            ),
           },
           {
-            id: 'role',
-            label: 'XI / bench',
-            sortValue: (row) => (xiCodes.has(row.code) ? 0 : 10 + squad.bench.findIndex((item) => item.code === row.code)),
-            render: (row) =>
-              xiCodes.has(row.code) ? 'XI' : `bench ${squad.bench.findIndex((item) => item.code === row.code) + 1}`,
+            id: 'fdr',
+            label: 'FDR GW1',
+            hint: HINT.fdr,
+            sortValue: (row) => gw1Fdr(row),
+            render: (row) => <HintedValue hint={HINT.fdr}>{gw1Fdr(row)}</HintedValue>,
+          },
+          {
+            id: 'mins',
+            label: 'E min GW1',
+            hint: HINT.mins,
+            sortValue: (row) => row.expectedMinutesGw1,
+            render: (row) => <HintedValue hint={HINT.mins}>{row.expectedMinutesGw1.toFixed(0)}</HintedValue>,
+          },
+          {
+            id: 'club3',
+            label: '3-of-club',
+            hint: HINT.club3,
+            sortValue: (row) => clubCount.get(row.current.teamId)?.n ?? 0,
+            render: (row) => {
+              const club = clubCount.get(row.current.teamId)
+              const label = club?.flagged ? '3-of-club' : club && club.n >= 2 ? `${club.n}` : '—'
+              return <HintedValue hint={HINT.club3}>{label}</HintedValue>
+            },
+          },
+          {
+            id: 'cliff',
+            label: 'Cliff',
+            hint: HINT.cliff,
+            sortValue: (row) => (fixtureCliff(row).flagged ? 1 : 0),
+            render: (row) => {
+              const cliff = fixtureCliff(row)
+              return <HintedValue hint={`${HINT.cliff} ${cliff.detail}`}>{cliff.flagged ? 'Yes' : '—'}</HintedValue>
+            },
           },
           {
             id: 'audit',
             label: 'Audit',
-            hint: 'Reconstructable GW1 expected-points line.',
-            render: (row) => <span className="fpl-gw0-audit">{playerAuditLine(row)}</span>,
+            hint: HINT.audit,
+            render: (row) => <AuditCell player={row} />,
           },
         ]}
         rows={squad.players}
@@ -531,10 +1016,42 @@ function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squ
       />
       <p className="fpl-explorer__meta">
         Price {formatGbpFromTenths(d.spendTenths)} · Σ E GW1 {fmt(d.ePtsGw1)} · Σ E GW1–6 {fmt(d.ePtsGw16)}
-        {' · '}£{poundsFromTenths(d.remainingTenths).toFixed(1)}m unspent
+        {' · '}£{poundsFromTenths(d.remainingTenths).toFixed(1)}m unspent · Σ GW1 with captain{' '}
+        {fmt(captain.squadGw1WithCaptain)}
       </p>
     </section>
   )
+}
+
+function AuditCell({ player }: { player: Gw0Projection }) {
+  const line = playerAuditLine(player)
+  return (
+    <details className="fpl-gw0-audit-details">
+      <summary tabIndex={0} title={line || HINT.audit}>
+        GW1 audit
+      </summary>
+      <p className="fpl-gw0-audit">{line || 'No GW1 audit line.'}</p>
+    </details>
+  )
+}
+
+function roleLabel(row: Gw0Projection, squad: OrderedSquad, xiCodes: ReadonlySet<number>): string {
+  if (xiCodes.has(row.code)) return 'XI'
+  const index = squad.bench.findIndex((item) => item.code === row.code)
+  const gk = positionPool(row.position) === 'GK'
+  return gk ? `Bench ${index + 1} (GK last)` : `Bench ${index + 1}`
+}
+
+function gw1Fdr(player: Gw0Projection): string {
+  const gw1 = player.auditByGw.find((row) => row.gw === 1)
+  if (!gw1 || gw1.fdrBuckets.length === 0) return '—'
+  return gw1.fdrBuckets.map((bucket) => (bucket == null ? '?' : String(bucket))).join('/')
+}
+
+function pinStatus(pins: Gw0SquadPinsRecord, code: number): 'lock' | 'exclude' | '' {
+  if (pins.lockedCodes.includes(code)) return 'lock'
+  if (pins.excludedCodes.includes(code)) return 'exclude'
+  return ''
 }
 
 function names(players: readonly { current: { webName: string } }[]): string {

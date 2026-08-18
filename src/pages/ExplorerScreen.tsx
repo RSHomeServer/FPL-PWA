@@ -80,6 +80,7 @@ export function DataTable<T>({
   rowKey,
   defaultSort,
   rowStyle,
+  rowClassName,
 }: {
   caption: string
   columns: readonly DataTableColumn<T>[]
@@ -88,6 +89,7 @@ export function DataTable<T>({
   rowKey?: (row: T, index: number) => string | number
   defaultSort?: DataTableSort
   rowStyle?: (row: T) => CSSProperties | undefined
+  rowClassName?: (row: T) => string | undefined
 }) {
   const [sort, setSort] = useState<DataTableSort | null>(defaultSort ?? null)
 
@@ -128,7 +130,13 @@ export function DataTable<T>({
                     : 'descending'
                   : 'none'
               return (
-                <th key={column.id} scope="col" aria-sort={ariaSort} title={column.hint}>
+                <th
+                  key={column.id}
+                  scope="col"
+                  aria-sort={ariaSort}
+                  title={column.hint}
+                  tabIndex={column.hint && !column.sortValue ? 0 : undefined}
+                >
                   {column.sortValue ? (
                     <button
                       type="button"
@@ -162,7 +170,11 @@ export function DataTable<T>({
             sorted.map((row, index) => (
               <tr
                 key={rowKey ? rowKey(row, index) : index}
-                className={rowStyle?.(row) ? 'fpl-explorer__row--team' : undefined}
+                className={
+                  [rowStyle?.(row) ? 'fpl-explorer__row--team' : undefined, rowClassName?.(row)]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
                 style={rowStyle?.(row)}
               >
                 {columns.map((column) => (
@@ -174,6 +186,17 @@ export function DataTable<T>({
         </tbody>
       </table>
     </div>
+  )
+}
+
+export function HintedValue({ hint, children }: { hint: string; children: ReactNode }) {
+  return (
+    <span className="fpl-explorer__hinted" tabIndex={0} title={hint}>
+      <span className="fpl-explorer__hinted-text">{children}</span>
+      <span className="fpl-explorer__cell-hint" role="tooltip">
+        {hint}
+      </span>
+    </span>
   )
 }
 

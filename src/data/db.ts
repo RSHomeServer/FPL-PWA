@@ -11,6 +11,7 @@ import type {
   FplPlayer,
   FplTeam,
   LiveCacheMeta,
+  Gw0SquadPinsRecord,
   RoleEvidenceRecord,
   SeasonCacheMeta,
 } from './types'
@@ -35,6 +36,7 @@ export type FplCacheDb = ReturnType<typeof createSongaraDb> & {
   liveFixtures: Table<FplFixture>
   liveEvents: Table<FplLiveEvent>
   roleEvidence: Table<RoleEvidenceRecord>
+  gw0SquadPins: Table<Gw0SquadPinsRecord>
 }
 
 let db: FplCacheDb | null = null
@@ -69,6 +71,12 @@ export function getFplCacheDb(): FplCacheDb {
         version: 3,
         stores: {
           roleEvidence: 'code, liveId',
+        },
+      },
+      {
+        version: 4,
+        stores: {
+          gw0SquadPins: 'id',
         },
       },
     ],

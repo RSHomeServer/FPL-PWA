@@ -1,11 +1,21 @@
+import { formatGbpFromTenths } from '../data/prices'
 import {
   assembleSquad,
+  BUDGET_TENTHS,
+  MAX_PER_CLUB,
   buildSquadLp,
+  diagnosePins,
+  formatPinInfeasibility,
   selectedFromColumns,
+  SquadInfeasibleError,
+  uniquePinCodes,
   type FormationId,
   type LpCandidate,
   type OrderedSquad,
+  type PinViolation,
   type SquadObjectiveName,
+  type SquadPinScope,
+  type SquadPins,
 } from './gw0Squad'
 
 /**
@@ -39,9 +49,14 @@ export async function solveSquadObjective(
   candidates: readonly LpCandidate[],
   objective: SquadObjectiveName,
   formation: FormationId,
+  pins: SquadPins = {},
 ): Promise<OrderedSquad> {
+  const diagnosed = diagnosePins(candidates, pins)
+  if (diagnosed.length) {
+    throw new SquadInfeasibleError(formatPinInfeasibility(diagnosed), diagnosed)
+  }
   const highs = await loadGw0Highs()
-  const lp = buildSquadLp(candidates, objective)
+  const lp = buildSquadLp(candidates, objective, pins)
   const result = highs.solve(lp, {
     output_flag: false,
     log_to_console: false,
@@ -50,7 +65,8 @@ export async function solveSquadObjective(
     random_seed: 1,
   })
   if (result.Status !== 'Optimal') {
-    throw new Error(`HiGHS ${objective} status ${result.Status}`)
+    const violations = highsInfeasible(objective, result.Status, pins)
+    throw new SquadInfeasibleError(formatPinInfeasibility(violations), violations)
   }
   const picked = selectedFromColumns(result.Columns, candidates)
   return assembleSquad(picked, objective, formation)
@@ -59,10 +75,28 @@ export async function solveSquadObjective(
 export async function solveBothObjectives(
   candidates: readonly LpCandidate[],
   formation: FormationId,
+  pins: SquadPins = {},
+  scope: SquadPinScope = 'both',
 ): Promise<{ shortTerm: OrderedSquad; longTerm: OrderedSquad }> {
-  const shortTerm = await solveSquadObjective(candidates, 'shortTerm', formation)
-  const longTerm = await solveSquadObjective(candidates, 'longTerm', formation)
+  const shortPins = scope === 'longTerm' ? {} : pins
+  const longPins = scope === 'shortTerm' ? {} : pins
+  const shortTerm = await solveSquadObjective(candidates, 'shortTerm', formation, shortPins)
+  const longTerm = await solveSquadObjective(candidates, 'longTerm', formation, longPins)
   return { shortTerm, longTerm }
+}
+
+function highsInfeasible(objective: SquadObjectiveName, status: string, pins: SquadPins): PinViolation[] {
+  const locked = uniquePinCodes(pins.lockedCodes)
+  const excluded = uniquePinCodes(pins.excludedCodes)
+  const lockBit = locked.length ? ` Locked: ${locked.join(', ')}.` : ''
+  const exclBit = excluded.length ? ` Excluded: ${excluded.join(', ')}.` : ''
+  return [
+    {
+      code: 'infeasible',
+      detail: `HiGHS ${objective} status ${status}. Binding FPL rules: 15 players, ${formatGbpFromTenths(BUDGET_TENTHS)}, 2 GK / 5 DEF / 5 MID / 3 FWD, max ${MAX_PER_CLUB} per club.${lockBit}${exclBit}`,
+      lockedCodes: locked,
+    },
+  ]
 }
 
 async function instantiateHighs(): Promise<HighsHandle> {
