@@ -328,8 +328,6 @@ export function Gw0SquadPage() {
         </p>
       </div>
 
-      <Gw0MetricsExplainer />
-
       {infeasible ? (
         <p className="fpl-gw0-callout fpl-gw0-callout--error" role="alert">
           <strong>Could not apply the current locks/excludes.</strong> Locks were not dropped.
@@ -679,6 +677,7 @@ function ReadyView({
         />
       </div>
       <Gw0PoolCharts pool={lpPlayers} shortCodes={shortCodes} longCodes={longCodes} />
+      <Gw0MetricsExplainer />
       <p className="fpl-explorer__meta">
         LP pool {lpPool} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs
         long-term {fmt(overlap.longGw1)} · short-term ΣGW1–6 {fmt(overlap.shortGw16)} vs long-term{' '}

@@ -108,6 +108,7 @@ function PitchCard({ player }: { player: PitchPlayer }) {
           code={player.photoCode ?? 0}
           name={player.name}
           size={48}
+          loading="eager"
         />
         <TeamCrest
           className="fpl-pitch-card__crest"

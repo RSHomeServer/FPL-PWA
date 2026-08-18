@@ -8,11 +8,13 @@ export function PlayerPhoto({
   name,
   size = 32,
   className,
+  loading = 'lazy',
 }: {
   code: number
   name: string
   size?: number
   className?: string
+  loading?: 'lazy' | 'eager'
 }) {
   const src = playerPhotoUrl(code)
   const [failed, setFailed] = useState(false)
@@ -36,7 +38,7 @@ export function PlayerPhoto({
       alt=""
       width={size}
       height={size}
-      loading="lazy"
+      loading={loading}
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
