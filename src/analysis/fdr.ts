@@ -196,9 +196,27 @@ export function sameClub(
 }
 
 export function promotedTeamKeys(prior: LoadedSeason, next: LoadedSeason): Set<string> {
-  const priorKeys = new Set(prior.teams.map(teamKey).filter((key) => key.length > 0))
+  return promotedTeamKeysFromTeams(prior.teams, next.teams)
+}
+
+/** True when `current` is in the next-season table but not the prior-season table. */
+export function isPromotedClub(
+  priorTeams: readonly { code: number; name: string; shortName: string }[],
+  current: { code: number; name: string; shortName: string },
+): boolean {
+  const key = teamKey(current)
+  if (!key) return false
+  const priorKeys = new Set(priorTeams.map(teamKey).filter((entry) => entry.length > 0))
+  return !priorKeys.has(key)
+}
+
+export function promotedTeamKeysFromTeams(
+  priorTeams: readonly { code: number; name: string; shortName: string }[],
+  nextTeams: readonly { code: number; name: string; shortName: string }[],
+): Set<string> {
+  const priorKeys = new Set(priorTeams.map(teamKey).filter((key) => key.length > 0))
   const promoted = new Set<string>()
-  for (const team of next.teams) {
+  for (const team of nextTeams) {
     const key = teamKey(team)
     if (key && !priorKeys.has(key)) promoted.add(key)
   }

@@ -3,6 +3,7 @@ import {
   PHASE0_GOALS_FDR,
   clubStatus,
   fixturesForTeamGw,
+  isPromotedClub,
   lookupFactor,
   type ClubStatus,
   type FdrBucket,
@@ -31,7 +32,12 @@ import {
   type EventRates,
   type ShrinkageSpec,
 } from './metrics'
-import type { FplFixture, FplLivePlayer, FplTeam, PlayerPosition } from '../data/types'
+import type { FplFixture, FplLivePlayer, FplTeam, PlayerPosition, RoleEvidence } from '../data/types'
+import {
+  enumSummary,
+  fitnessFromConcern,
+  mSemForPlayer,
+} from './roleEvidence'
 
 /** Calibrated Phase 0 defaults — do not re-litigate in Phase 1. */
 export const GW0_K_TRANS = 0.75
@@ -52,7 +58,10 @@ const CHANCE_FITNESS: ReadonlyArray<readonly [number, number]> = [
 export type Gw0Options = {
   shrinkage: ShrinkageSpec
   kTrans: number
+  /** Default m_sem for unreviewed players (Phase 1: 1). */
   mSem: number
+  /** Per-player RoleEvidence; missing codes keep `mSem`. */
+  roleEvidenceByCode?: ReadonlyMap<number, RoleEvidence>
   horizonFactor: number
   defAttackWeight: number
   gkAttackWeight: number
@@ -80,6 +89,7 @@ export type Gw0JoinedPlayer = {
   /** No 2025/26 row with ≥90 minutes — positional baseline only. */
   newToPl: boolean
   club: ClubStatus
+  promotedClub: boolean
 }
 
 export type ConfidenceLabel = 'HIGH' | 'MEDIUM' | 'LOW'
@@ -115,6 +125,7 @@ export type GwPointsAudit = {
   startsRate: number
   shrunkStarts: number
   mSem: number
+  semSummary: string
   mFitness: number
   eMinutes: number
   fixtures: GwFixtureAudit[]
@@ -129,6 +140,8 @@ export type Gw0Projection = Gw0JoinedPlayer & {
   position: PlayerPosition
   nowCostTenths: number
   adjP90: number
+  mSem: number
+  roleEvidence: RoleEvidence | null
   mFitness: number
   expectedMinutesGw1: number
   ePtsByGw: number[]
@@ -198,6 +211,11 @@ export function joinGw0Pool(
     const club: ClubStatus = prior
       ? clubStatus(prior, { teamCode, teamName, teamShortName })
       : 'unknown'
+    const promotedClub = isPromotedClub(priorSeason.teams, {
+      code: teamCode,
+      name: teamName,
+      shortName: teamShortName,
+    })
     joined.push({
       code: current.code,
       current: { ...current, teamCode },
@@ -206,6 +224,7 @@ export function joinGw0Pool(
       prior,
       newToPl,
       club,
+      promotedClub,
     })
   }
   return joined
@@ -244,6 +263,8 @@ export function auditLine(audit: GwPointsAudit): string {
     `E_min=${audit.eMinutes.toFixed(1)}`,
     `FDR=${fdr}`,
     `f=${audit.blendedFactor.toFixed(2)}`,
+    `m_sem=${audit.mSem.toFixed(2)}`,
+    audit.semSummary,
     `m_fit=${audit.mFitness.toFixed(2)}`,
     `rate=${audit.ratePart.toFixed(2)}`,
     `E_pts=${audit.ePts.toFixed(2)}`,
@@ -266,11 +287,9 @@ function projectOne(
   const adj = adjP90Gw0(adjP90(raw, baselineP90, priorMinutes, options.shrinkage), transferred, options.kTrans)
   const priorStarts = player.prior?.startsRate ?? 0
   const shrunkStarts = shrunkStartsRate(priorStarts, baselines.starts[pool], priorMinutes)
-  const mFitness = fitnessMultiplier(
-    player.current.status,
-    player.current.chanceOfPlayingNextRound,
-    player.current.chanceOfPlayingThisRound,
-  )
+  const evidence = options.roleEvidenceByCode?.get(player.code) ?? null
+  const mSem = evidence ? mSemForPlayer(evidence) : options.mSem
+  const mFitness = resolveGw0Fitness(player, evidence)
   const eventRate = mixEventRate(player, baselines.eventEp90[pool], options)
 
   const auditByGw = GW0_PROJECTION_GWS.map((gw) =>
@@ -286,7 +305,9 @@ function projectOne(
       priorMinutes,
       priorStarts,
       shrunkStarts,
+      mSem,
       mFitness,
+      semSummary: enumSummary(evidence),
       fixtures,
       options,
     }),
@@ -296,13 +317,15 @@ function projectOne(
   const ePtsGw1 = gw1?.ePts ?? 0
   const ePtsGw16 = ePtsByGw.reduce((sum, value) => sum + value, 0)
   const price = player.current.nowCostTenths / 10
-  const confidence = gw0Confidence(player, mFitness, options)
+  const confidence = gw0Confidence(player, mFitness, { ...options, mSem })
 
   return {
     ...player,
     position,
     nowCostTenths: player.current.nowCostTenths,
     adjP90: adj,
+    mSem,
+    roleEvidence: evidence,
     mFitness,
     expectedMinutesGw1: gw1?.eMinutes ?? 0,
     ePtsByGw,
@@ -331,14 +354,16 @@ function projectGw(
     priorMinutes: number
     priorStarts: number
     shrunkStarts: number
+    mSem: number
     mFitness: number
+    semSummary: string
     fixtures: readonly FplFixture[]
     options: Gw0Options
   },
 ): GwPointsAudit {
   const gwFixtures = fixturesForTeamGw(args.fixtures, player.current.teamId, args.gw)
   const n = Math.max(1, gwFixtures.length)
-  const startsAfterFlags = args.shrunkStarts * args.options.mSem * args.mFitness
+  const startsAfterFlags = args.shrunkStarts * args.mSem * args.mFitness
   const eMinutes = args.mFitness <= 0 ? 0 : expectedMinutes(startsAfterFlags, gwFixtures.length)
   const perMatch = n > 0 ? eMinutes / n : 0
   const targets = gwFixtures.length > 0 ? gwFixtures : [null]
@@ -385,7 +410,8 @@ function projectGw(
     adjP90: args.adj,
     startsRate: args.priorStarts,
     shrunkStarts: args.shrunkStarts,
-    mSem: args.options.mSem,
+    mSem: args.mSem,
+    semSummary: args.semSummary,
     mFitness: args.mFitness,
     eMinutes,
     fixtures: fixtureAudits,
@@ -400,6 +426,28 @@ function projectGw(
 function fixtureFactor(fixture: PlayerFixture | null, table: FdrRateTable): number {
   if (!fixture) return 1
   return lookupFactor(table, fixture.fdr)
+}
+
+/**
+ * Phase 1 API `status` / chance first. `fitnessConcern` only applies when both
+ * chance fields are empty and status is not already a hard exclude (i/u/s/n).
+ */
+export function resolveGw0Fitness(
+  player: Pick<Gw0JoinedPlayer, 'current'>,
+  evidence: RoleEvidence | null | undefined,
+): number {
+  const fromApi = fitnessMultiplier(
+    player.current.status,
+    player.current.chanceOfPlayingNextRound,
+    player.current.chanceOfPlayingThisRound,
+  )
+  if (player.current.chanceOfPlayingNextRound != null || player.current.chanceOfPlayingThisRound != null) {
+    return fromApi
+  }
+  if (!evidence) return fromApi
+  const code = player.current.status.trim().toLowerCase()
+  if (code === 'i' || code === 'u' || code === 's' || code === 'n') return fromApi
+  return fitnessFromConcern(evidence.fitnessConcern)
 }
 
 function mixEventRate(player: Gw0JoinedPlayer, baseline: number, options: Gw0Options): number {

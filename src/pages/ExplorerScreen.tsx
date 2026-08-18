@@ -10,6 +10,7 @@ type ExplorerScreenProps = {
   title: string
   question: string
   children: ReactNode
+  hideSeasonBar?: boolean
 }
 
 export function ExplorerScreen({
@@ -17,6 +18,7 @@ export function ExplorerScreen({
   title,
   question,
   children,
+  hideSeasonBar = false,
 }: ExplorerScreenProps) {
   return (
     <div className="fpl-explorer">
@@ -28,7 +30,7 @@ export function ExplorerScreen({
             <h1 className="fpl-explorer__title">{title}</h1>
             <p className="fpl-explorer__question">{question}</p>
           </header>
-          <SeasonBar />
+          {hideSeasonBar ? null : <SeasonBar />}
           {children}
         </Stack>
       </div>

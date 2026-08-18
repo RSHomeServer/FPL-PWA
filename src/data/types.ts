@@ -159,3 +159,30 @@ export type FplLiveSnapshot = {
   fixtures: FplFixture[]
   events: FplLiveEvent[]
 }
+
+/** Structured GW0 minutes flags — modelling plan §13. Never a raw expected-minutes number. */
+export type StartingLikelihood = 'HIGH' | 'MEDIUM' | 'LOW'
+export type RoleContinuity = 'HIGH' | 'MEDIUM' | 'LOW'
+export type CompetitionForPlace = 'HIGH' | 'MEDIUM' | 'LOW'
+export type FitnessConcern = 'NONE' | 'MEDIUM' | 'HIGH'
+export type RoleChange = 'NONE' | 'MINOR' | 'MAJOR'
+export type EvidenceConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
+
+export type RoleEvidence = {
+  startingLikelihood: StartingLikelihood
+  roleContinuity: RoleContinuity
+  competitionForPlace: CompetitionForPlace
+  fitnessConcern: FitnessConcern
+  roleChange: RoleChange
+  evidenceNotes: string
+  sources: string[]
+  confidence: EvidenceConfidence
+}
+
+/** Dexie row: RoleEvidence keyed by official player `code`. */
+export type RoleEvidenceRecord = RoleEvidence & {
+  code: number
+  liveId: number | null
+  webName: string
+  updatedAt: number
+}
