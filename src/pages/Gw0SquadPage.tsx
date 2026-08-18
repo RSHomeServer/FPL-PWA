@@ -1,8 +1,26 @@
 import { Button, Label, Select, Spinner, Stack } from '@songara/pwa-base/ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import seedFile from '../analysis/gw0RoleEvidence.seed.json'
+import bandsFile from '../analysis/gw0Phase0Bands.json'
 import { buildGw0OptimiserPool, GW0_PRIOR_SEASON_ID } from '../analysis/gw0Build'
+import {
+  asPhase0Bands,
+  type Gw0Phase0Bands,
+} from '../analysis/gw0Phase0Bands'
+import {
+  EP_NEXT_DISCLAIMER,
+  epNextDelta,
+  formatSigned,
+  largestEpNextDisagreements,
+  summariseEpNext,
+} from '../analysis/gw0EpNext'
+import {
+  buildGw0ExportPayload,
+  gw0ExportCsv,
+  gw0ExportFilename,
+  gw0ExportJson,
+} from '../analysis/gw0Export'
 import {
   assembleSquad,
   DEFAULT_FORMATION,
@@ -22,10 +40,21 @@ import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
 import { formatGbpFromTenths, poundsFromTenths } from '../data/prices'
 import { readStoredRoleEvidence } from '../data/roleEvidenceStore'
 import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
+import type { Gw0Projection } from '../analysis/gw0Project'
+
+const PHASE0_BANDS = asPhase0Bands(bandsFile)
 
 type SolveState =
   | { status: 'loading'; message: string }
-  | { status: 'ready'; shortTerm: OrderedSquad; longTerm: OrderedSquad; overlap: SquadOverlap; lpPool: number }
+  | {
+      status: 'ready'
+      shortTerm: OrderedSquad
+      longTerm: OrderedSquad
+      overlap: SquadOverlap
+      lpPool: number
+      lpPlayers: Gw0Projection[]
+      solvedAt: string
+    }
   | { status: 'error'; message: string }
 
 async function loadGw0Squads(nextFormation: FormationId, force: boolean) {
@@ -49,6 +78,8 @@ async function loadGw0Squads(nextFormation: FormationId, force: boolean) {
     longTerm,
     overlap: overlapDiffs(shortTerm.players, longTerm.players),
     lpPool: pool.candidates.length,
+    lpPlayers: pool.candidates.map((row) => row.projection),
+    solvedAt: new Date().toISOString(),
   }
 }
 
@@ -87,12 +118,19 @@ export function Gw0SquadPage() {
       title="Starting 15 candidates"
       question="Which 15-player 2026/27 squads are reasonable before the GW1 deadline, and why?"
     >
+      <p className="fpl-gw0-callout">
+        <strong>GW2–GW6 limitation.</strong> Horizon projections do not condition on post-GW1 events
+        (injuries, price changes, realised minutes). They reuse the same as-of-GW0 rates with a
+        different FDR.
+      </p>
       <p className="fpl-explorer__meta">
-        The optimiser maximises expected FPL points, not EPPM and not FPL <code>ep_next</code>.
-        GW2–GW6 do not condition on post-GW1 events. Phase 0 GW1 RMSE is about 2.7 pts per player —
-        these are candidate squads, not a unique best team.
+        The optimiser maximises expected FPL points, not EPPM and not FPL <code>ep_next</code>.{' '}
+        {EP_NEXT_DISCLAIMER} Phase 0 GW1 RMSE is about 2.7 pts per player — these are candidate
+        squads, not a unique best team.
       </p>
       <p className="fpl-explorer__meta">{GW0_SOLVER_NOTE}</p>
+
+      <RmseBandsPanel bands={PHASE0_BANDS} />
 
       <div className="fpl-explorer__toolbar">
         <Label className="fpl-explorer__field">
@@ -138,9 +176,55 @@ export function Gw0SquadPage() {
         <ExplorerEmpty title="Could not build squads" description={state.message} />
       ) : null}
       {state.status === 'ready' ? (
-        <ReadyView shortTerm={state.shortTerm} longTerm={state.longTerm} overlap={state.overlap} lpPool={state.lpPool} />
+        <ReadyView
+          shortTerm={state.shortTerm}
+          longTerm={state.longTerm}
+          overlap={state.overlap}
+          lpPool={state.lpPool}
+          lpPlayers={state.lpPlayers}
+          solvedAt={state.solvedAt}
+        />
       ) : null}
     </ExplorerScreen>
+  )
+}
+
+function RmseBandsPanel({ bands }: { bands: Gw0Phase0Bands }) {
+  const shipped = bands.shippedGw1
+  return (
+    <section className="fpl-gw0-bands">
+      <h2 className="fpl-explorer__title">Historical skill (Phase 0 backtest)</h2>
+      <p className="fpl-explorer__meta">
+        Cached from <code>{bands.source}</code> ({bands.generatedAt.slice(0, 10)}). Not a live
+        re-run. One pooled number is not gospel — GW1 RMSE across eight season transitions ranged{' '}
+        {bands.transitionRmseMin.toFixed(2)}–{bands.transitionRmseMax.toFixed(2)} (Approach A, no FDR,{' '}
+        k_trans=1).
+      </p>
+      <ul className="fpl-gw0-band-metrics">
+        <li>
+          <span className="fpl-gw0-band-label">Shipped GW1 RMSE</span>
+          <strong>{shipped.rmse.toFixed(2)}</strong>
+          <span className="fpl-explorer__meta">pts / player · FDR + CS tables</span>
+        </li>
+        <li>
+          <span className="fpl-gw0-band-label">MAE</span>
+          <strong>{shipped.mae.toFixed(2)}</strong>
+        </li>
+        <li>
+          <span className="fpl-gw0-band-label">Spearman</span>
+          <strong>{shipped.spearman.toFixed(3)}</strong>
+        </li>
+        <li>
+          <span className="fpl-gw0-band-label">n</span>
+          <strong>{shipped.n}</strong>
+        </li>
+      </ul>
+      <p className="fpl-explorer__meta">
+        Independent as-of-GW0 horizon RMSE:{' '}
+        {bands.horizonByGw.map((row) => `GW${row.gw} ${row.rmse.toFixed(2)}`).join(' · ')}
+      </p>
+      <p className="fpl-explorer__meta">{bands.squadRmseNote}</p>
+    </section>
   )
 }
 
@@ -149,18 +233,35 @@ function ReadyView({
   longTerm,
   overlap,
   lpPool,
+  lpPlayers,
+  solvedAt,
 }: {
   shortTerm: OrderedSquad
   longTerm: OrderedSquad
   overlap: SquadOverlap
   lpPool: number
+  lpPlayers: Gw0Projection[]
+  solvedAt: string
 }) {
+  const disagreements = useMemo(() => largestEpNextDisagreements(lpPlayers), [lpPlayers])
+  const shortEp = summariseEpNext(shortTerm.players)
+  const longEp = summariseEpNext(longTerm.players)
+
   return (
     <Stack gap="lg">
       <p className="fpl-explorer__meta">
         LP pool {lpPool} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs
         long-term {fmt(overlap.longGw1)} · short-term ΣGW1–6 {fmt(overlap.shortGw16)} vs long-term{' '}
         {fmt(overlap.longGw16)}
+      </p>
+      <p className="fpl-explorer__meta">
+        Σ ep_next vs Σ E GW1 (compared players only): short-term {fmt(shortEp.epNextSum)} vs{' '}
+        {fmt(shortEp.ourGw1Compared)}
+        {shortEp.delta == null ? '' : ` (${formatSigned(shortEp.delta)})`}
+        {shortEp.missing ? ` · ${shortEp.missing} missing ep_next` : ''} · long-term{' '}
+        {fmt(longEp.epNextSum)} vs {fmt(longEp.ourGw1Compared)}
+        {longEp.delta == null ? '' : ` (${formatSigned(longEp.delta)})`}
+        {longEp.missing ? ` · ${longEp.missing} missing ep_next` : ''}
       </p>
       <div className="fpl-gw0-diff">
         <p>
@@ -173,9 +274,134 @@ function ReadyView({
           <strong>Long-term only:</strong> {names(overlap.onlyLong) || '—'}
         </p>
       </div>
+      <DisagreementsPanel rows={disagreements} lpPool={lpPool} />
+      <ExportBar shortTerm={shortTerm} longTerm={longTerm} solvedAt={solvedAt} />
       <SquadPanel title="Short-term 15" blurb="Max expected GW1 points." squad={shortTerm} />
       <SquadPanel title="Long-term 15" blurb="Max equal-weight expected GW1–GW6 points." squad={longTerm} />
     </Stack>
+  )
+}
+
+function DisagreementsPanel({
+  rows,
+  lpPool,
+}: {
+  rows: ReturnType<typeof largestEpNextDisagreements>
+  lpPool: number
+}) {
+  return (
+    <section className="fpl-gw0-squad">
+      <h2 className="fpl-explorer__title">Largest ep_next disagreements</h2>
+      <p className="fpl-explorer__meta">
+        Top {rows.length} |E GW1 − ep_next| in the LP pool ({lpPool} players). Reference only — the
+        solver does not use ep_next.
+      </p>
+      <DataTable
+        caption="LP-pool players with the largest absolute gap versus official ep_next"
+        defaultSort={{ id: 'abs', direction: 'desc' }}
+        columns={[
+          {
+            id: 'player',
+            label: 'Player',
+            sortValue: (row) => row.webName,
+            render: (row) => row.webName,
+          },
+          {
+            id: 'pos',
+            label: 'Pos',
+            sortValue: (row) => row.position,
+            render: (row) => row.position,
+          },
+          {
+            id: 'club',
+            label: 'Club',
+            sortValue: (row) => row.teamShortName,
+            render: (row) => row.teamShortName,
+          },
+          {
+            id: 'gw1',
+            label: 'E GW1',
+            sortValue: (row) => row.ePtsGw1,
+            render: (row) => fmt(row.ePtsGw1),
+          },
+          {
+            id: 'epnext',
+            label: 'ep_next',
+            hint: 'FPL reference column only — not the objective.',
+            sortValue: (row) => row.epNext,
+            render: (row) => fmt(row.epNext),
+          },
+          {
+            id: 'delta',
+            label: 'Δ',
+            hint: 'Our E[pts GW1] minus official ep_next.',
+            sortValue: (row) => row.delta,
+            render: (row) => formatSigned(row.delta),
+          },
+          {
+            id: 'abs',
+            label: '|Δ|',
+            sortValue: (row) => row.absDelta,
+            render: (row) => row.absDelta.toFixed(2),
+          },
+        ]}
+        rows={rows}
+        empty="No LP-pool player has both E GW1 and ep_next."
+        rowKey={(row) => row.code}
+      />
+    </section>
+  )
+}
+
+function ExportBar({
+  shortTerm,
+  longTerm,
+  solvedAt,
+}: {
+  shortTerm: OrderedSquad
+  longTerm: OrderedSquad
+  solvedAt: string
+}) {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const payload = useMemo(
+    () => buildGw0ExportPayload(shortTerm, longTerm, solvedAt),
+    [shortTerm, longTerm, solvedAt],
+  )
+  const json = useMemo(() => gw0ExportJson(payload), [payload])
+  const csv = useMemo(() => gw0ExportCsv(payload), [payload])
+
+  return (
+    <div className="fpl-gw0-export">
+      <p className="fpl-explorer__meta">
+        Export both 15s (XI, bench, prices, E GW1, E GW1–6, remaining budget, formation, generated-at).
+        Client-side only.
+      </p>
+      <div className="fpl-explorer__toolbar">
+        <Button
+          onClick={() => downloadText(gw0ExportFilename(payload.generatedAt, 'json'), json, 'application/json')}
+        >
+          Download JSON
+        </Button>
+        <Button
+          onClick={() => downloadText(gw0ExportFilename(payload.generatedAt, 'csv'), csv, 'text/csv')}
+        >
+          Download CSV
+        </Button>
+        <Button
+          onClick={() => {
+            void navigator.clipboard.writeText(json).then(
+              () => {
+                setCopyState('copied')
+                window.setTimeout(() => setCopyState('idle'), 2000)
+              },
+              () => setCopyState('failed'),
+            )
+          }}
+        >
+          {copyState === 'copied' ? 'Copied JSON' : copyState === 'failed' ? 'Copy failed' : 'Copy JSON'}
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -190,6 +416,7 @@ function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squ
       ? 'No player has two or more FDR 4–5 fixtures in GW4–6.'
       : d.cliffs.map((row) => `${row.player.current.webName} (${row.cliff.detail})`).join('; ')
   const xiCodes = new Set(squad.xi.map((row) => row.code))
+  const ep = summariseEpNext(squad.players)
 
   return (
     <section className="fpl-gw0-squad">
@@ -207,6 +434,11 @@ function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squ
           Best XI ({squad.formation}): {names(squad.xi)}
         </li>
         <li>Bench (outfield by GW1 EP, GK last): {names(squad.bench)}</li>
+        <li>
+          Σ ep_next {fmt(ep.epNextSum)} vs Σ E GW1 {fmt(ep.ourGw1Compared)}
+          {ep.delta == null ? '' : ` (${formatSigned(ep.delta)})`}
+          {ep.missing ? ` · ${ep.missing} missing` : ''} — reference only
+        </li>
       </ul>
       <DataTable
         caption={`${title} — names, position, club, price, expected points, confidence`}
@@ -263,6 +495,16 @@ function SquadPanel({ title, blurb, squad }: { title: string; blurb: string; squ
             render: (row) => (row.epNext == null ? '—' : fmt(row.epNext)),
           },
           {
+            id: 'delta',
+            label: 'Δ vs ep_next',
+            hint: 'Our E[pts GW1] minus official ep_next. Not used by the solver.',
+            sortValue: (row) => epNextDelta(row.ePtsGw1, row.epNext) ?? -999,
+            render: (row) => {
+              const delta = epNextDelta(row.ePtsGw1, row.epNext)
+              return delta == null ? '—' : formatSigned(delta)
+            },
+          },
+          {
             id: 'eppm',
             label: 'EPPM',
             hint: 'Diagnostic pts per £m. Not maximised.',
@@ -301,4 +543,14 @@ function names(players: readonly { current: { webName: string } }[]): string {
 
 function fmt(value: number): string {
   return value.toFixed(2)
+}
+
+function downloadText(filename: string, text: string, mime: string) {
+  const blob = new Blob([text], { type: `${mime};charset=utf-8` })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }

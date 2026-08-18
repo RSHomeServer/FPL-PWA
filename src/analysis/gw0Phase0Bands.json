@@ -1,0 +1,106 @@
+{
+  "source": "docs/gw0-phase-0-validation.md",
+  "generatedAt": "2026-08-18T09:56:38.407Z",
+  "shippedGw1": {
+    "label": "FDR goals + CS tables",
+    "n": 2992,
+    "rmse": 2.671,
+    "mae": 1.954,
+    "spearman": 0.347
+  },
+  "baselinePooled": {
+    "label": "Pooled (n-weighted, 0.1 baseline)",
+    "rmse": 2.83,
+    "mae": 2.256,
+    "spearman": 0.332,
+    "n": 2992
+  },
+  "transitions": [
+    {
+      "label": "2017-18 → 2018-19",
+      "n": 372,
+      "rmse": 3.145,
+      "mae": 2.547,
+      "spearman": 0.306
+    },
+    {
+      "label": "2018-19 → 2019-20",
+      "n": 358,
+      "rmse": 2.996,
+      "mae": 2.445,
+      "spearman": 0.327
+    },
+    {
+      "label": "2019-20 → 2020-21",
+      "n": 378,
+      "rmse": 2.621,
+      "mae": 1.808,
+      "spearman": 0.517
+    },
+    {
+      "label": "2020-21 → 2021-22",
+      "n": 371,
+      "rmse": 3.086,
+      "mae": 2.535,
+      "spearman": 0.224
+    },
+    {
+      "label": "2021-22 → 2022-23",
+      "n": 377,
+      "rmse": 2.786,
+      "mae": 2.367,
+      "spearman": 0.358
+    },
+    {
+      "label": "2022-23 → 2023-24",
+      "n": 377,
+      "rmse": 2.473,
+      "mae": 1.773,
+      "spearman": 0.321
+    },
+    {
+      "label": "2023-24 → 2024-25",
+      "n": 383,
+      "rmse": 2.703,
+      "mae": 2.262,
+      "spearman": 0.337
+    },
+    {
+      "label": "2024-25 → 2025-26",
+      "n": 376,
+      "rmse": 2.85,
+      "mae": 2.326,
+      "spearman": 0.261
+    }
+  ],
+  "transitionRmseMin": 2.473,
+  "transitionRmseMax": 3.145,
+  "horizonByGw": [
+    {
+      "gw": 1,
+      "rmse": 2.677
+    },
+    {
+      "gw": 2,
+      "rmse": 2.807
+    },
+    {
+      "gw": 3,
+      "rmse": 2.646
+    },
+    {
+      "gw": 4,
+      "rmse": 2.81
+    },
+    {
+      "gw": 5,
+      "rmse": 2.58
+    },
+    {
+      "gw": 6,
+      "rmse": 2.757
+    }
+  ],
+  "squadRmse": null,
+  "squadRmseNote": "Squad totals are sums of noisy per-player EPs. Phase 0's unconstrained top-15 diagnostic is mean actual GW1 points of the 15 highest projected players versus prior-points leaders, with FPL constraints ignored — not a legal-squad RMSE, so none is shown."
+}
