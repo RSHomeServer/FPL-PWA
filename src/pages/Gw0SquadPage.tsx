@@ -88,6 +88,7 @@ type ReadyBits = {
   overlap: SquadOverlap
   candidates: LpCandidate[]
   lpPlayers: Gw0Projection[]
+  teamShortById: Record<number, string>
   solvedAt: string
 }
 
@@ -96,7 +97,11 @@ type PageState =
   | { status: 'ready'; ready: ReadyBits; infeasible: string | null }
   | { status: 'error'; message: string; ready: ReadyBits | null }
 
-async function loadGw0Pool(force: boolean): Promise<{ candidates: LpCandidate[]; lpPlayers: Gw0Projection[] }> {
+async function loadGw0Pool(force: boolean): Promise<{
+  candidates: LpCandidate[]
+  lpPlayers: Gw0Projection[]
+  teamShortById: Record<number, string>
+}> {
   const seed = parseRoleEvidenceSeed(seedFile)
   const stored = await readStoredRoleEvidence()
   const evidenceByCode = roleEvidenceByCode(mergeRoleEvidence(seed, stored))
@@ -111,9 +116,14 @@ async function loadGw0Pool(force: boolean): Promise<{ candidates: LpCandidate[];
     throw new Error(`Vaastav ${GW0_PRIOR_SEASON_ID} merged_gw is required for GW0 priors`)
   }
   const pool = buildGw0OptimiserPool(live, prior, evidenceByCode)
+  const teamShortById: Record<number, string> = {}
+  for (const team of live.teams) {
+    if (team.id > 0 && team.shortName) teamShortById[team.id] = team.shortName
+  }
   return {
     candidates: pool.candidates,
     lpPlayers: pool.candidates.map((row) => row.projection),
+    teamShortById,
   }
 }
 
@@ -153,7 +163,13 @@ export function Gw0SquadPage() {
     })
     try {
       const pool =
-        force || !previous ? await loadGw0Pool(force) : { candidates: previous.candidates, lpPlayers: previous.lpPlayers }
+        force || !previous
+          ? await loadGw0Pool(force)
+          : {
+              candidates: previous.candidates,
+              lpPlayers: previous.lpPlayers,
+              teamShortById: previous.teamShortById,
+            }
       const emptyPins: SquadPins = { lockedCodes: [], excludedCodes: [] }
       const shortPins = nextPins.scope === 'longTerm' ? emptyPins : nextPins
       const longPins = nextPins.scope === 'shortTerm' ? emptyPins : nextPins
@@ -177,6 +193,7 @@ export function Gw0SquadPage() {
         overlap: overlapDiffs(shortTerm.players, longTerm.players),
         candidates: pool.candidates,
         lpPlayers: pool.lpPlayers,
+        teamShortById: pool.teamShortById,
         solvedAt: new Date().toISOString(),
       }
       setState({
@@ -330,6 +347,7 @@ export function Gw0SquadPage() {
             overlap={ready.overlap}
             lpPool={ready.lpPlayers.length}
             lpPlayers={ready.lpPlayers}
+            teamShortById={ready.teamShortById}
             solvedAt={ready.solvedAt}
             pins={pins}
           />
@@ -611,6 +629,7 @@ function ReadyView({
   overlap,
   lpPool,
   lpPlayers,
+  teamShortById,
   solvedAt,
   pins,
 }: {
@@ -619,6 +638,7 @@ function ReadyView({
   overlap: SquadOverlap
   lpPool: number
   lpPlayers: Gw0Projection[]
+  teamShortById: Record<number, string>
   solvedAt: string
   pins: Gw0SquadPinsRecord
 }) {
@@ -627,7 +647,12 @@ function ReadyView({
   const longEp = summariseEpNext(longTerm.players)
   const shortCaptain = suggestCaptainForSquad(shortTerm)
   const longCaptain = suggestCaptainForSquad(longTerm)
-  const shorts = useMemo(() => teamShortById(lpPlayers), [lpPlayers])
+  const shorts = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const [id, name] of Object.entries(teamShortById)) map.set(Number(id), name)
+    for (const [id, name] of teamShortByIdFromPlayers(lpPlayers)) map.set(id, name)
+    return map
+  }, [lpPlayers, teamShortById])
 
   return (
     <Stack gap="lg">
@@ -1089,7 +1114,7 @@ function clubOf(
   }
 }
 
-function teamShortById(players: readonly Gw0Projection[]): Map<number, string> {
+function teamShortByIdFromPlayers(players: readonly Gw0Projection[]): Map<number, string> {
   const map = new Map<number, string>()
   for (const row of players) {
     if (row.current.teamId > 0 && row.teamShortName) map.set(row.current.teamId, row.teamShortName)
