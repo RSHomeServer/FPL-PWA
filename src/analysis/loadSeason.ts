@@ -7,7 +7,14 @@ import {
   parsePlayerRow,
   parseTeamRow,
 } from '../data/parse'
-import type { FplFixture, FplPerformance, FplPlayer, FplTeam, PlayerPosition } from '../data/types'
+import type {
+  FplFixture,
+  FplPerformance,
+  FplPlayer,
+  FplTeam,
+  PlayerPosition,
+  SeasonSnapshot,
+} from '../data/types'
 
 export const SEASON_IDS = [
   '2016-17',
@@ -134,6 +141,33 @@ async function readCachedCsv(cache: SeasonCache, path: string, required: boolean
   }
   cache.write(path, file.text)
   return file.text
+}
+
+/** Browser path: Dexie vaastav snapshot → the analysis season used by priors. */
+export function loadedSeasonFromSnapshot(snapshot: SeasonSnapshot): LoadedSeason {
+  const teamById = new Map(snapshot.teams.map((team) => [team.id, team]))
+  const players: AnalysisPlayer[] = snapshot.players.map((player) => {
+    const team = teamById.get(player.teamId)
+    return {
+      ...player,
+      costChangeStart: 0,
+      teamCode: team?.code ?? 0,
+      teamName: team?.name ?? '',
+      teamShortName: team?.shortName ?? '',
+      status: 'a',
+    }
+  })
+  const startsInferred =
+    snapshot.performances.length > 0 && snapshot.performances.every((row) => row.starts === 0)
+  return {
+    seasonId: snapshot.meta.seasonId,
+    players,
+    teams: snapshot.teams,
+    fixtures: snapshot.fixtures,
+    performances: snapshot.performances,
+    hasMergedGw: snapshot.performances.length > 0,
+    startsInferred,
+  }
 }
 
 export function playerByCode(season: LoadedSeason): Map<number, AnalysisPlayer> {

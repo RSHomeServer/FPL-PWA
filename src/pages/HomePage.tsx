@@ -9,6 +9,7 @@ const EXPLORERS = [
   { to: '/compare', label: 'Compare', hint: 'Which of these two?' },
   { to: '/fixtures', label: 'Fixtures', hint: 'What is coming?' },
   { to: '/teams', label: 'Teams', hint: 'Who to target?' },
+  { to: '/gw0', label: 'GW0 squads', hint: 'Two legal starting 15s' },
   { to: '/gw0-flags', label: 'GW0 flags', hint: 'Review minutes enums' },
 ] as const
 
