@@ -1,0 +1,192 @@
+.fpl-pitch {
+  --fpl-pitch-grass: #2f9e4f;
+  --fpl-pitch-grass-alt: #278a44;
+  --fpl-pitch-line: rgb(255 255 255 / 88%);
+  --fpl-pitch-bench: #cfe9c8;
+  --fpl-pitch-plate: #f7f7f7;
+  --fpl-pitch-ink: #161616;
+  --fpl-pitch-muted: #6b6b6b;
+  --fpl-pitch-vice: #6b3fa0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+  color: var(--fpl-pitch-ink);
+}
+
+.fpl-pitch__label {
+  margin: 0;
+  color: var(--color-foreground, #e8f4ee);
+  font-family: var(--font-family-sans, "Source Sans 3", sans-serif);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.fpl-pitch__field {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 22rem;
+  overflow: hidden;
+  border-radius: 0.35rem;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--fpl-pitch-grass) 0 12.5%,
+      var(--fpl-pitch-grass-alt) 12.5% 25%
+    );
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 18%);
+}
+
+.fpl-pitch__markings {
+  position: absolute;
+  inset: 4%;
+  width: 92%;
+  height: 92%;
+  pointer-events: none;
+}
+
+.fpl-pitch__markings path,
+.fpl-pitch__markings circle,
+.fpl-pitch__markings line,
+.fpl-pitch__markings rect {
+  fill: none;
+  stroke: var(--fpl-pitch-line);
+  stroke-width: 1.15;
+}
+
+.fpl-pitch__markings .fpl-pitch__spot {
+  fill: var(--fpl-pitch-line);
+  stroke: none;
+}
+
+.fpl-pitch__lines {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  height: 100%;
+  padding: 0.55rem 0.4rem 0.7rem;
+}
+
+.fpl-pitch__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(0.3rem, 1.8vw, 1.1rem);
+}
+
+.fpl-pitch-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(3.6rem, 14%, 5.4rem);
+  margin: 0;
+}
+
+.fpl-pitch-card--empty {
+  min-height: 5.4rem;
+  border: 1px dashed rgb(255 255 255 / 45%);
+  border-radius: 0.45rem;
+  background: rgb(255 255 255 / 8%);
+}
+
+.fpl-pitch-card__shirt {
+  display: block;
+  width: 72%;
+  height: auto;
+  filter: drop-shadow(0 0.2rem 0.25rem rgb(0 0 0 / 35%));
+}
+
+.fpl-pitch-card__badge {
+  position: absolute;
+  top: 0.05rem;
+  left: 0.05rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+}
+
+.fpl-pitch-card__badge--c {
+  background: #1a1a1a;
+}
+
+.fpl-pitch-card__badge--v {
+  background: var(--fpl-pitch-vice);
+}
+
+.fpl-pitch-card__plate {
+  width: 100%;
+  margin-top: -0.15rem;
+  padding: 0.12rem 0.2rem 0.16rem;
+  border-radius: 0.12rem;
+  background: var(--fpl-pitch-plate);
+  box-shadow: 0 0.08rem 0.18rem rgb(0 0 0 / 22%);
+  text-align: center;
+}
+
+.fpl-pitch-card__name,
+.fpl-pitch-card__fixture {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fpl-pitch-card__name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--fpl-pitch-ink);
+}
+
+.fpl-pitch-card__fixture {
+  font-size: 0.58rem;
+  line-height: 1.15;
+  color: var(--fpl-pitch-muted);
+}
+
+.fpl-pitch__bench {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 0.4rem 0.75rem;
+  padding: 0.55rem 0.7rem 0.7rem;
+  border-radius: 0.85rem;
+  background: var(--fpl-pitch-bench);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
+}
+
+.fpl-pitch__bench-slot {
+  display: flex;
+  flex: 1 1 4.5rem;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4.4rem;
+  max-width: 6.5rem;
+}
+
+.fpl-pitch__bench-pos {
+  margin-bottom: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fpl-pitch-ink);
+}
+
+.fpl-pitch__bench .fpl-pitch-card {
+  width: 100%;
+  max-width: 5.2rem;
+}

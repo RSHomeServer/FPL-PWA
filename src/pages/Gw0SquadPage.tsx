@@ -40,6 +40,8 @@ import { GW0_SOLVER_NOTE, solveSquadObjective } from '../analysis/gw0Solver'
 import { loadedSeasonFromSnapshot } from '../analysis/loadSeason'
 import { positionPool, type PositionPool } from '../analysis/metrics'
 import { mergeRoleEvidence, parseRoleEvidenceSeed, roleEvidenceByCode } from '../analysis/roleEvidence'
+import { PlayerLabel, TeamLabel } from '../components/FplMedia'
+import { FplPitch, type PitchPlayer } from '../components/FplPitch'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
 import {
   emptyGw0Pins,
@@ -52,6 +54,7 @@ import {
 import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
 import { formatGbpFromTenths, poundsFromTenths } from '../data/prices'
 import { readStoredRoleEvidence } from '../data/roleEvidenceStore'
+import { teamRowStyle } from '../data/teamColors'
 import type { Gw0PinScope, Gw0SquadPinsRecord } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen, HintedValue } from './ExplorerScreen'
 import type { Gw0Projection } from '../analysis/gw0Project'
@@ -251,19 +254,21 @@ export function Gw0SquadPage() {
       title="Starting 15 candidates"
       question="Which 15-player 2026/27 squads are reasonable before the GW1 deadline, and why?"
     >
-      <p className="fpl-gw0-callout">
-        <strong>GW2–GW6 limitation.</strong> Horizon projections do not condition on post-GW1 events
-        (injuries, price changes, realised minutes). They reuse the same as-of-GW0 rates with a
-        different FDR.
-      </p>
-      <p className="fpl-explorer__meta">
-        The optimiser maximises expected FPL points, not EPPM and not FPL <code>ep_next</code>.{' '}
-        {EP_NEXT_DISCLAIMER} Phase 0 GW1 RMSE is about 2.7 pts per player — these are candidate
-        squads, not a unique best team.
-      </p>
-      <p className="fpl-explorer__meta">{GW0_SOLVER_NOTE}</p>
-
-      <RmseBandsPanel bands={PHASE0_BANDS} />
+      <details className="fpl-gw0-notes">
+        <summary>Limitations, RMSE, and how the optimiser scores</summary>
+        <p className="fpl-gw0-callout">
+          <strong>GW2–GW6 limitation.</strong> Horizon projections do not condition on post-GW1 events
+          (injuries, price changes, realised minutes). They reuse the same as-of-GW0 rates with a
+          different FDR.
+        </p>
+        <p className="fpl-explorer__meta">
+          The optimiser maximises expected FPL points, not EPPM and not FPL <code>ep_next</code>.{' '}
+          {EP_NEXT_DISCLAIMER} Phase 0 GW1 RMSE is about 2.7 pts per player — these are candidate
+          squads, not a unique best team.
+        </p>
+        <p className="fpl-explorer__meta">{GW0_SOLVER_NOTE}</p>
+        <RmseBandsPanel bands={PHASE0_BANDS} />
+      </details>
 
       <div className="fpl-explorer__toolbar">
         <Label className="fpl-explorer__field">
@@ -319,14 +324,6 @@ export function Gw0SquadPage() {
 
       {ready ? (
         <Stack gap="lg">
-          <PinPanel
-            pins={pins}
-            lpPlayers={ready.lpPlayers}
-            disabled={solving}
-            onChange={(next) => {
-              void commitPins(next)
-            }}
-          />
           <ReadyView
             shortTerm={ready.shortTerm}
             longTerm={ready.longTerm}
@@ -335,6 +332,14 @@ export function Gw0SquadPage() {
             lpPlayers={ready.lpPlayers}
             solvedAt={ready.solvedAt}
             pins={pins}
+          />
+          <PinPanel
+            pins={pins}
+            lpPlayers={ready.lpPlayers}
+            disabled={solving}
+            onChange={(next) => {
+              void commitPins(next)
+            }}
           />
         </Stack>
       ) : null}
@@ -516,7 +521,7 @@ function PinPanel({
             label: 'Player',
             hint: HINT.player,
             sortValue: (row) => row.current.webName,
-            render: (row) => row.current.webName,
+            render: (row) => <PlayerLabel player={row.current} />,
           },
           {
             id: 'pos',
@@ -530,7 +535,7 @@ function PinPanel({
             label: 'Club',
             hint: HINT.club,
             sortValue: (row) => row.teamShortName,
-            render: (row) => row.teamShortName,
+            render: (row) => <TeamLabel team={clubOf(row)} />,
           },
           {
             id: 'price',
@@ -594,6 +599,7 @@ function PinPanel({
         rows={visible}
         empty={query.trim() || pos !== 'ALL' ? 'No LP-pool players match that search.' : 'LP pool is empty.'}
         rowKey={(row) => row.code}
+        rowStyle={(row) => teamRowStyle(clubOf(row))}
       />
     </section>
   )
@@ -621,9 +627,26 @@ function ReadyView({
   const longEp = summariseEpNext(longTerm.players)
   const shortCaptain = suggestCaptainForSquad(shortTerm)
   const longCaptain = suggestCaptainForSquad(longTerm)
+  const shorts = useMemo(() => teamShortById(lpPlayers), [lpPlayers])
 
   return (
     <Stack gap="lg">
+      <div className="fpl-gw0-pitches">
+        <SquadPanel
+          title="Short-term 15"
+          blurb="Max expected GW1 points."
+          squad={shortTerm}
+          captain={shortCaptain}
+          shorts={shorts}
+        />
+        <SquadPanel
+          title="Long-term 15"
+          blurb="Max equal-weight expected GW1–GW6 points."
+          squad={longTerm}
+          captain={longCaptain}
+          shorts={shorts}
+        />
+      </div>
       <p className="fpl-explorer__meta">
         LP pool {lpPool} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs
         long-term {fmt(overlap.longGw1)} · short-term ΣGW1–6 {fmt(overlap.shortGw16)} vs long-term{' '}
@@ -649,7 +672,7 @@ function ReadyView({
           <strong>Long-term only:</strong> {names(overlap.onlyLong) || '—'}
         </p>
       </div>
-      <DisagreementsPanel rows={disagreements} lpPool={lpPool} />
+      <DisagreementsPanel rows={disagreements} lpPool={lpPool} lpPlayers={lpPlayers} />
       <ExportBar
         shortTerm={shortTerm}
         longTerm={longTerm}
@@ -658,8 +681,6 @@ function ReadyView({
         shortCaptain={shortCaptain}
         longCaptain={longCaptain}
       />
-      <SquadPanel title="Short-term 15" blurb="Max expected GW1 points." squad={shortTerm} captain={shortCaptain} />
-      <SquadPanel title="Long-term 15" blurb="Max equal-weight expected GW1–GW6 points." squad={longTerm} captain={longCaptain} />
     </Stack>
   )
 }
@@ -667,10 +688,13 @@ function ReadyView({
 function DisagreementsPanel({
   rows,
   lpPool,
+  lpPlayers,
 }: {
   rows: ReturnType<typeof largestEpNextDisagreements>
   lpPool: number
+  lpPlayers: Gw0Projection[]
 }) {
+  const byCode = useMemo(() => new Map(lpPlayers.map((row) => [row.code, row])), [lpPlayers])
   return (
     <section className="fpl-gw0-squad">
       <h2 className="fpl-explorer__title">Largest ep_next disagreements</h2>
@@ -687,7 +711,10 @@ function DisagreementsPanel({
             label: 'Player',
             hint: HINT.player,
             sortValue: (row) => row.webName,
-            render: (row) => row.webName,
+            render: (row) => {
+              const player = byCode.get(row.code)
+              return player ? <PlayerLabel player={player.current} /> : row.webName
+            },
           },
           {
             id: 'pos',
@@ -701,7 +728,10 @@ function DisagreementsPanel({
             label: 'Club',
             hint: HINT.club,
             sortValue: (row) => row.teamShortName,
-            render: (row) => row.teamShortName,
+            render: (row) => {
+              const player = byCode.get(row.code)
+              return player ? <TeamLabel team={clubOf(player)} /> : row.teamShortName
+            },
           },
           {
             id: 'gw1',
@@ -735,6 +765,7 @@ function DisagreementsPanel({
         rows={rows}
         empty="No LP-pool player has both E GW1 and ep_next."
         rowKey={(row) => row.code}
+        rowStyle={(row) => teamRowStyle(clubOf(byCode.get(row.code)))}
       />
     </section>
   )
@@ -812,11 +843,13 @@ function SquadPanel({
   blurb,
   squad,
   captain,
+  shorts,
 }: {
   title: string
   blurb: string
   squad: OrderedSquad
   captain: CaptainSuggestion
+  shorts: Map<number, string>
 }) {
   const d = squad.diagnostics
   const clubs = d.clubs
@@ -830,11 +863,20 @@ function SquadPanel({
   const xiCodes = new Set(squad.xi.map((row) => row.code))
   const ep = summariseEpNext(squad.players)
   const clubCount = new Map(d.clubs.map((row) => [row.teamId, row]))
+  const xi = squad.xi.map((player) => toPitchPlayer(player, shorts, captain))
+  const bench = squad.bench.map((player) => toPitchPlayer(player, shorts, captain))
 
   return (
     <section className="fpl-gw0-squad">
       <h2 className="fpl-explorer__title">{title}</h2>
       <p className="fpl-explorer__meta">{blurb}</p>
+      <FplPitch
+        formation={squad.formation}
+        players={xi}
+        bench={bench}
+        height={520}
+        label={`${title} · ${squad.formation}`}
+      />
       <ul className="fpl-gw0-stats">
         <li>Remaining {formatGbpFromTenths(d.remainingTenths)} of £100.0m</li>
         <li>
@@ -864,6 +906,7 @@ function SquadPanel({
       <DataTable
         caption={`${title} — pick role, stats, captain suggestion, and GW1 audit`}
         defaultSort={{ id: 'role', direction: 'asc' }}
+        rowStyle={(row) => teamRowStyle(clubOf(row))}
         rowClassName={(row) =>
           row.code === captain.captain.code
             ? 'fpl-gw0-row--captain'
@@ -886,7 +929,7 @@ function SquadPanel({
             label: 'Player',
             hint: HINT.player,
             sortValue: (row) => row.current.webName,
-            render: (row) => row.current.webName,
+            render: (row) => <PlayerLabel player={row.current} />,
           },
           {
             id: 'pos',
@@ -900,7 +943,7 @@ function SquadPanel({
             label: 'Club',
             hint: HINT.club,
             sortValue: (row) => row.teamShortName,
-            render: (row) => row.teamShortName,
+            render: (row) => <TeamLabel team={clubOf(row)} />,
           },
           {
             id: 'price',
@@ -1033,6 +1076,56 @@ function AuditCell({ player }: { player: Gw0Projection }) {
       <p className="fpl-gw0-audit">{line || 'No GW1 audit line.'}</p>
     </details>
   )
+}
+
+function clubOf(
+  player?: Pick<Gw0Projection, 'current' | 'teamName' | 'teamShortName'> | null,
+) {
+  if (!player) return undefined
+  return {
+    code: player.current.teamCode,
+    name: player.teamName,
+    shortName: player.teamShortName,
+  }
+}
+
+function teamShortById(players: readonly Gw0Projection[]): Map<number, string> {
+  const map = new Map<number, string>()
+  for (const row of players) {
+    if (row.current.teamId > 0 && row.teamShortName) map.set(row.current.teamId, row.teamShortName)
+  }
+  return map
+}
+
+function gw1FixtureLabel(player: Gw0Projection, shorts: Map<number, string>): string {
+  const gw1 = player.auditByGw.find((row) => row.gw === 1)
+  const fixtures = gw1?.fixtures.filter((row) => row.fixtureId > 0) ?? []
+  if (!fixtures.length) return ''
+  return fixtures
+    .map((fx) => {
+      const opp = shorts.get(fx.opponentTeamId)
+      const place = fx.home ? 'H' : 'A'
+      return opp ? `${opp} (${place})` : `(${place})`
+    })
+    .join(' · ')
+}
+
+function toPitchPlayer(
+  player: Gw0Projection,
+  shorts: Map<number, string>,
+  captain: CaptainSuggestion,
+): PitchPlayer {
+  return {
+    id: player.code,
+    name: player.current.webName,
+    photoCode: player.code,
+    teamCode: player.current.teamCode,
+    teamShortName: player.teamShortName,
+    position: positionPool(player.position),
+    fixture: gw1FixtureLabel(player, shorts),
+    captain: player.code === captain.captain.code,
+    viceCaptain: player.code === captain.vice.code,
+  }
 }
 
 function roleLabel(row: Gw0Projection, squad: OrderedSquad, xiCodes: ReadonlySet<number>): string {

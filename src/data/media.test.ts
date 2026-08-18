@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nameInitials, playerPhotoUrl, teamCrestUrl } from './media'
+import { nameInitials, playerPhotoUrl, teamCrestUrl, teamShirtUrl } from './media'
 
 describe('media URLs', () => {
   it('builds Premier League player photo URLs from FPL codes', () => {
@@ -15,6 +15,16 @@ describe('media URLs', () => {
       'https://resources.premierleague.com/premierleague/badges/50/t3.png',
     )
     expect(teamCrestUrl(0)).toBeNull()
+  })
+
+  it('builds official FPL shirt URLs, with a keeper variant', () => {
+    expect(teamShirtUrl(3)).toBe(
+      'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_3.webp',
+    )
+    expect(teamShirtUrl(3, true)).toBe(
+      'https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_3_1.webp',
+    )
+    expect(teamShirtUrl(0)).toBeNull()
   })
 })
 

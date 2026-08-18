@@ -154,6 +154,8 @@ describe('GW0 golden projection (hand-calculated MID)', () => {
     const projected = projectGw0Pool(joined, [fixture({ teamHDifficulty: 1 })], baselines)
     expect(projected[0]?.ePtsGw1).toBeCloseTo(2.6 * 1.255, 10)
     expect(projected[0]?.auditByGw[0]?.fixtures[0]?.attackFactor).toBeCloseTo(1.255, 10)
+    expect(projected[0]?.auditByGw[0]?.fixtures[0]?.opponentTeamId).toBe(2)
+    expect(projected[0]?.auditByGw[0]?.fixtures[0]?.home).toBe(true)
   })
 
   it('blends DEF FDR with the Phase 0 0.5 / 0.5 heuristic', () => {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { nameInitials, playerPhotoUrl, teamCrestUrl } from '../data/media'
+import { nameInitials, playerPhotoUrl, teamCrestUrl, teamShirtUrl } from '../data/media'
 import { playerDisplayName } from '../data/parse'
 import type { FplPlayer, FplTeam } from '../data/types'
 
@@ -66,6 +66,50 @@ export function TeamCrest({
       alt=""
       width={size}
       height={size}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+export function ShirtImage({
+  teamCode,
+  name,
+  keeper = false,
+  size = 56,
+  className,
+}: {
+  teamCode: number
+  name: string
+  keeper?: boolean
+  size?: number
+  className?: string
+}) {
+  const src = teamShirtUrl(teamCode, keeper)
+  const [failed, setFailed] = useState(false)
+  const height = Math.round(size * 1.2)
+
+  if (!src || failed) {
+    return (
+      <span
+        className={['fpl-media', 'fpl-media--shirt-fallback', className].filter(Boolean).join(' ')}
+        style={{ width: size, height }}
+        aria-hidden
+      >
+        {nameInitials(name)}
+      </span>
+    )
+  }
+
+  return (
+    <img
+      className={['fpl-media', 'fpl-media--shirt', className].filter(Boolean).join(' ')}
+      src={src}
+      alt=""
+      width={size}
+      height={height}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
