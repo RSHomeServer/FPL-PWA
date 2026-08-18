@@ -5,9 +5,11 @@ import type { FplFixture, FplLivePlayer, FplPerformance, FplTeam, PlayerPosition
 import {
   auditLine,
   confidenceLabel,
+  DEFAULT_GW0_OPTIONS,
   fitnessMultiplier,
   joinGw0Pool,
   projectGw0Pool,
+  resolveGw0Fitness,
 } from './gw0Project'
 import { aggregatePriors, buildBaselines } from './backtest'
 import { expectedPointsApproachA } from './metrics'
@@ -247,6 +249,69 @@ describe('M13 labels', () => {
     expect(confidenceLabel({ minutes: 900, newToPl: false, mSem: 1, mFitness: 1, club: 'transferred' })).toBe(
       'MEDIUM',
     )
+  })
+})
+
+describe('per-player m_sem', () => {
+  const baselines = buildBaselines([
+    ...aggregatePriors(priorSeason()),
+    regular('GK', 4),
+    regular('DEF', 4),
+    regular('MID', 4, 2 / 3),
+    regular('FWD', 4),
+  ])
+
+  it('keeps unreviewed players at m_sem = 1 (Phase 1 minutes)', () => {
+    const joined = joinGw0Pool([livePlayer({ id: 44, code: 99 })], [team()], priorSeason())
+    const projected = projectGw0Pool(joined, [fixture({ teamHDifficulty: 2 })], baselines)
+    expect(projected[0]?.mSem).toBe(1)
+    expect(projected[0]?.roleEvidence).toBeNull()
+    expect(projected[0]?.expectedMinutesGw1).toBeCloseTo(60, 10)
+    expect(projected[0]?.auditByGw[0]?.semSummary).toContain('unreviewed')
+    expect(auditLine(projected[0]!.auditByGw[0]!)).toContain('m_sem=1.00')
+  })
+
+  it('reduces E_minutes when reviewed startingLikelihood is LOW', () => {
+    const joined = joinGw0Pool([livePlayer({ id: 44, code: 99 })], [team()], priorSeason())
+    const evidence = {
+      startingLikelihood: 'LOW' as const,
+      roleContinuity: 'HIGH' as const,
+      competitionForPlace: 'HIGH' as const,
+      fitnessConcern: 'NONE' as const,
+      roleChange: 'NONE' as const,
+      evidenceNotes: 'Rotation risk; not a locked starter.',
+      sources: ['https://example.test/preview'],
+      confidence: 'MEDIUM' as const,
+    }
+    const projected = projectGw0Pool(joined, [fixture({ teamHDifficulty: 2 })], baselines, {
+      ...DEFAULT_GW0_OPTIONS,
+      roleEvidenceByCode: new Map([[99, evidence]]),
+    })
+    expect(projected[0]?.mSem).toBeCloseTo(0.55, 10)
+    expect(projected[0]?.expectedMinutesGw1).toBeCloseTo(60 * 0.55, 10)
+    expect(projected[0]?.ePtsGw1).toBeCloseTo(2.6 * 0.55, 10)
+    expect(auditLine(projected[0]!.auditByGw[0]!)).toContain('start=LOW')
+    expect(auditLine(projected[0]!.auditByGw[0]!)).toContain('change=NONE')
+  })
+
+  it('does not let fitnessConcern override published chance fields', () => {
+    const joined = joinGw0Pool(
+      [livePlayer({ id: 44, code: 99, chanceOfPlayingNextRound: 100 })],
+      [team()],
+      priorSeason(),
+    )
+    const evidence = {
+      startingLikelihood: 'HIGH' as const,
+      roleContinuity: 'HIGH' as const,
+      competitionForPlace: 'LOW' as const,
+      fitnessConcern: 'HIGH' as const,
+      roleChange: 'NONE' as const,
+      evidenceNotes: 'API chance is 100; concern is audit only.',
+      sources: ['https://fantasy.premierleague.com/api/bootstrap-static/'],
+      confidence: 'HIGH' as const,
+    }
+    expect(resolveGw0Fitness(joined[0]!, evidence)).toBe(1)
+    expect(resolveGw0Fitness(joined[0]!, null)).toBe(1)
   })
 })
 

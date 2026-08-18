@@ -1,6 +1,7 @@
 import { defineSite, SITE_CAPABILITY } from '@songara/pwa-base'
 import { ComparePage } from './pages/ComparePage'
 import { FixturesPage } from './pages/FixturesPage'
+import { FlagsReviewPage } from './pages/FlagsReviewPage'
 import { GameweekPage } from './pages/GameweekPage'
 import { HomePage } from './pages/HomePage'
 import { PlayerDetailPage } from './pages/PlayerDetailPage'
@@ -21,5 +22,6 @@ export const fplSite = defineSite({
     { path: '/compare', component: ComparePage },
     { path: '/fixtures', component: FixturesPage },
     { path: '/teams', component: TeamsPage },
+    { path: '/gw0-flags', component: FlagsReviewPage },
   ],
 })

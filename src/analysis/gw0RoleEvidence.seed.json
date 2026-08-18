@@ -1,0 +1,1440 @@
+{
+  "generatedAt": "2026-08-18T12:29:17.150Z",
+  "seasonId": "2026-27",
+  "records": [
+    {
+      "code": 549067,
+      "liveId": 477,
+      "webName": "Abbott",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: lowMinutes. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 200785,
+      "liveId": 73,
+      "webName": "Adams",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "LOW",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: doubtful. Official FPL news: Unspecified injury - 75% chance of playing Official chance of playing next: 75%. Fitness from official FPL news/chance only; role otherwise unchanged. Not guessing HIGH start.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 147675,
+      "liveId": 320,
+      "webName": "Akpom",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 462387,
+      "liveId": 322,
+      "webName": "Al-Hamadi",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 201895,
+      "liveId": 535,
+      "webName": "Alderete",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "LOW",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: doubtful. Official FPL news: Knock - 75% chance of playing Official chance of playing next: 75%. Fitness from official FPL news/chance only; role otherwise unchanged. Not guessing HIGH start.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 577974,
+      "liveId": 424,
+      "webName": "Amass",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 215379,
+      "liveId": 481,
+      "webName": "Anderson",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 444180,
+      "liveId": 105,
+      "webName": "Anthony",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 109745,
+      "liveId": 2,
+      "webName": "Arrizabalaga",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: lowMinutes. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 214572,
+      "liveId": 495,
+      "webName": "Austin",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 499300,
+      "liveId": 235,
+      "webName": "Aznou",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 428971,
+      "liveId": 590,
+      "webName": "Benda",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: newClub, lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 576620,
+      "liveId": 437,
+      "webName": "Bendito Mantato",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 538638,
+      "liveId": 479,
+      "webName": "Bindon",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 208706,
+      "liveId": 452,
+      "webName": "Bruno G.",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Arsenal signed Bruno Guimaraes from Newcastle (Sky Sports, Aug 2026). He started the Community Shield vs Manchester City (Arsenal.com team news, 2026-08-16) but the midfield is crowded with Rice, Zubimendi, Odegaard and Lewis-Skelly, so startingLikelihood stays MEDIUM rather than HIGH.",
+      "sources": [
+        "https://www.arsenal.com/news/team-news-guimaraes-and-tzolis-start-community-shield-aGP3h9S4sdjJ",
+        "https://www.skysports.com/football/news/11095/13570096/bruno-guimaraes-arsenal-sign-midfielder-in-lb75m-transfer-as-newcastle-surpass-lb240m-in-player-sales-this-summer",
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 645618,
+      "liveId": 50,
+      "webName": "Burrowes",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 50093,
+      "liveId": 302,
+      "webName": "Button",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 640419,
+      "liveId": 509,
+      "webName": "Byfield",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 206915,
+      "liveId": 373,
+      "webName": "C.Jones",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "LOW",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: doubtful. Official FPL news: Hip injury - 75% chance of playing Official chance of playing next: 75%. Fitness from official FPL news/chance only; role otherwise unchanged. Not guessing HIGH start.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 443261,
+      "liveId": 313,
+      "webName": "Clarke",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 490881,
+      "liveId": 436,
+      "webName": "Collyer",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 491007,
+      "liveId": 163,
+      "webName": "D.Essugo",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 59735,
+      "liveId": 325,
+      "webName": "Darlow",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub, doubtful. Official FPL news: Unspecified injury - 75% chance of playing Official chance of playing next: 75%. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 464353,
+      "liveId": 355,
+      "webName": "Davies",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 115556,
+      "liveId": 508,
+      "webName": "Davies",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: lowMinutes. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 455084,
+      "liveId": 305,
+      "webName": "Davis",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 672492,
+      "liveId": 221,
+      "webName": "Drakes-Thomas",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 67089,
+      "liveId": 497,
+      "webName": "Dubravka",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 515046,
+      "liveId": 531,
+      "webName": "Ellborg",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: lowMinutes. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 543968,
+      "liveId": 316,
+      "webName": "Emersonn",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 438098,
+      "liveId": 23,
+      "webName": "F\u00e1bio Vieira",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 531442,
+      "liveId": 315,
+      "webName": "Fatawu",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 551226,
+      "liveId": 525,
+      "webName": "Fernandes",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 519913,
+      "liveId": 438,
+      "webName": "Fletcher",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 216055,
+      "liveId": 571,
+      "webName": "Florentino",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 547676,
+      "liveId": 425,
+      "webName": "Fredricson",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 176420,
+      "liveId": 308,
+      "webName": "Furlong",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 593174,
+      "liveId": 107,
+      "webName": "Furo",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 577285,
+      "liveId": 51,
+      "webName": "George Hemmings",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 449429,
+      "liveId": 306,
+      "webName": "Greaves",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 56979,
+      "liveId": 101,
+      "webName": "Henderson",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub, doubtful. Official FPL news: Wrist injury - 75% chance of playing Official chance of playing next: 75%. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 222625,
+      "liveId": 317,
+      "webName": "Hirst",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 699989,
+      "liveId": 550,
+      "webName": "Jocelin.T",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 242898,
+      "liveId": 209,
+      "webName": "Johnson",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 222018,
+      "liveId": 307,
+      "webName": "Johnson",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 183015,
+      "liveId": 303,
+      "webName": "Kipr\u00e9",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 576628,
+      "liveId": 435,
+      "webName": "Lacey",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 437499,
+      "liveId": 200,
+      "webName": "Lacroix",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 519440,
+      "liveId": 361,
+      "webName": "Lucky",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 212314,
+      "liveId": 267,
+      "webName": "Luki\u0107",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 442967,
+      "liveId": 562,
+      "webName": "Maeda",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 465351,
+      "liveId": 389,
+      "webName": "Matheus N.",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "LOW",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: doubtful. Official FPL news: Knock - 75% chance of playing Official chance of playing next: 75%. Fitness from official FPL news/chance only; role otherwise unchanged. Not guessing HIGH start.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 169593,
+      "liveId": 555,
+      "webName": "Matthews",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 461587,
+      "liveId": 323,
+      "webName": "McAteer",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 491501,
+      "liveId": 378,
+      "webName": "McConnell",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 232457,
+      "liveId": 324,
+      "webName": "Mehmeti",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 437495,
+      "liveId": 3,
+      "webName": "Meslier",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: newClub, lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 567119,
+      "liveId": 169,
+      "webName": "Mheuka",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 590039,
+      "liveId": 409,
+      "webName": "Mukasa",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 200834,
+      "liveId": 533,
+      "webName": "Mukiele",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "LOW",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: doubtful. Official FPL news: Knock - 75% chance of playing Official chance of playing next: 75%. Fitness from official FPL news/chance only; role otherwise unchanged. Not guessing HIGH start.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 578545,
+      "liveId": 39,
+      "webName": "Nedeljkovic",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 501390,
+      "liveId": 309,
+      "webName": "N\u00fa\u00f1ez",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 204822,
+      "liveId": 476,
+      "webName": "O.Richards",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 216616,
+      "liveId": 304,
+      "webName": "O'Shea",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 596047,
+      "liveId": 441,
+      "webName": "Obi",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 229164,
+      "liveId": 314,
+      "webName": "Ogbene",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 499726,
+      "liveId": 524,
+      "webName": "Olusesi",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 556637,
+      "liveId": 134,
+      "webName": "Oriola",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 112520,
+      "liveId": 301,
+      "webName": "Palmer",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 586268,
+      "liveId": 353,
+      "webName": "Pecsi",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 481624,
+      "liveId": 318,
+      "webName": "Philogene",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 231065,
+      "liveId": 91,
+      "webName": "Pinnock",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "HIGH",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "NONE",
+      "evidenceNotes": "Auto-flag: lowMinutes. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 489580,
+      "liveId": 365,
+      "webName": "Ramsay",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 244850,
+      "liveId": 40,
+      "webName": "Rogers",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Chelsea signed Morgan Rogers from Aston Villa for a British-record fee (BBC Sport, Jul 2026). He missed the post-World-Cup tour; attacking minutes are contested with Palmer and other forwards, so startingLikelihood is MEDIUM not HIGH.",
+      "sources": [
+        "https://www.bbc.com/sport/football/articles/cy8enwn2xq4o",
+        "https://www.skysports.com/football/news/11677/13564944/morgan-rogers-transfer-news-chelsea-complete-record-breaking-117m-deal-to-sign-forward-from-aston-villa",
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 499716,
+      "liveId": 510,
+      "webName": "Rowswell",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 490145,
+      "liveId": 528,
+      "webName": "Scarlett",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 240514,
+      "liveId": 564,
+      "webName": "Scherpen",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: newClub, lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 204561,
+      "liveId": 558,
+      "webName": "Schlager",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 221466,
+      "liveId": 498,
+      "webName": "Senesi",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Tottenham announced Senesi from Bournemouth on a free (club site, 2026-06-10). De Zerbi cited defensive quality, but Van Hecke also arrived and centre-back minutes look contested, so startingLikelihood stays MEDIUM.",
+      "sources": [
+        "https://www.tottenhamhotspur.com/news/1072863/senesi-switch-sealed",
+        "https://www.bbc.com/sport/football/articles/cddl0glz4p7o",
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 49262,
+      "liveId": 111,
+      "webName": "Steele",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 222694,
+      "liveId": 328,
+      "webName": "Struijk",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "MEDIUM",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub, doubtful. Official FPL news: Knock - 75% chance of playing Official chance of playing next: 75%. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 166989,
+      "liveId": 43,
+      "webName": "Tielemans",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Manchester United activated Tielemans\u2019 Aston Villa release clause (BBC Sport, 2026-07). Reporting frames him as competing with Mainoo rather than a locked starter, so startingLikelihood is MEDIUM.",
+      "sources": [
+        "https://www.bbc.com/sport/football/articles/c9929gzdl2go",
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 432422,
+      "liveId": 455,
+      "webName": "Tonali",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Tottenham list Sandro Tonali among 2026/27 FPL new recruits (club FPL prices article). Club-change minutes are not locked; startingLikelihood MEDIUM with confidence MEDIUM.",
+      "sources": [
+        "https://www.tottenhamhotspur.com/news/1079489/fpl-prices-for-202627-confirmed",
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 469142,
+      "liveId": 112,
+      "webName": "Van Hecke",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Tottenham signed Van Hecke from Brighton for \u00a352m (club site, 2026-06-18). He started 36/38 PL games in 2025/26, but Senesi also joined; competitionForPlace HIGH keeps startingLikelihood at MEDIUM.",
+      "sources": [
+        "https://www.tottenhamhotspur.com/news/1073998/van-hecke-joins-from-brighton",
+        "https://www.bbc.com/sport/football/articles/cgqj33gq21jo",
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "MEDIUM"
+    },
+    {
+      "code": 546600,
+      "liveId": 554,
+      "webName": "Van Oevelen",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 557012,
+      "liveId": 321,
+      "webName": "Walle Egeli",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 108813,
+      "liveId": 300,
+      "webName": "Walton",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "LOW",
+      "roleContinuity": "LOW",
+      "competitionForPlace": "HIGH",
+      "fitnessConcern": "NONE",
+      "roleChange": "MAJOR",
+      "evidenceNotes": "Auto-flag: lowMinutes, newToPl, promotedClub. Minutes look contested or unproven; startingLikelihood kept at MEDIUM or LOW. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 50175,
+      "liveId": 136,
+      "webName": "Welbeck",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    },
+    {
+      "code": 153682,
+      "liveId": 260,
+      "webName": "Wilson",
+      "updatedAt": 1787056157150,
+      "startingLikelihood": "MEDIUM",
+      "roleContinuity": "MEDIUM",
+      "competitionForPlace": "MEDIUM",
+      "fitnessConcern": "NONE",
+      "roleChange": "MINOR",
+      "evidenceNotes": "Auto-flag: newClub. No independent XI source in this draft; not guessing HIGH.",
+      "sources": [
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      ],
+      "confidence": "LOW"
+    }
+  ]
+}
