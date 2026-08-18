@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Vaastav CSV cache for the GW0 Phase 0 harness (do not commit dumps)
+.cache
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
