@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { FplLivePlayer, PlayerPosition } from '../data/types'
 import type { Gw0Projection } from './gw0Project'
 import { suggestCaptain, suggestCaptainForSquad } from './gw0Captain'
-import { solveBothObjectives, solveSquadObjective } from './gw0Solver'
+import { highsLoaderFromImport, solveBothObjectives, solveSquadObjective } from './gw0Solver'
 import {
   DEFAULT_FORMATION,
   FORMATIONS,
@@ -144,6 +144,14 @@ describe('HiGHS 15-man solve', () => {
     expect(lp).toContain('Binaries')
     expect(lp).toContain(lpVarName(501))
     expect(lp).not.toContain(lpVarName(999))
+  })
+
+  it('unwraps CJS / nested-default HiGHS imports until a loader function', () => {
+    const loader = () => Promise.resolve({} as never)
+    expect(highsLoaderFromImport(loader)).toBe(loader)
+    expect(highsLoaderFromImport({ default: loader })).toBe(loader)
+    expect(highsLoaderFromImport({ default: { default: loader } })).toBe(loader)
+    expect(() => highsLoaderFromImport({ default: { notALoader: true } })).toThrow(/loader function/)
   })
 })
 

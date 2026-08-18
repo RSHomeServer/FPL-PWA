@@ -35,6 +35,15 @@ const fplApiProxy = {
 export default defineConfig({
   plugins: [
     {
+      name: 'highs-esm-default',
+      enforce: 'pre',
+      transform(code, id) {
+        if (!id.includes('highs/build/highs.js')) return null
+        if (code.includes('export default Module')) return null
+        return { code: `${code}\nexport default Module;\n`, map: null }
+      },
+    },
+    {
       name: 'favicon-ico',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {

@@ -34,14 +34,17 @@ type HighsHandle = {
   ) => { Status: string; Columns: Record<string, { Primal?: number }> }
 }
 
-type HighsModule = {
-  default: (options?: { locateFile?: (file: string) => string }) => Promise<HighsHandle>
-}
+type HighsLoader = (options?: { locateFile?: (file: string) => string }) => Promise<HighsHandle>
 
 let highsPromise: Promise<HighsHandle> | null = null
 
 export async function loadGw0Highs(): Promise<HighsHandle> {
-  if (!highsPromise) highsPromise = instantiateHighs()
+  if (!highsPromise) {
+    highsPromise = instantiateHighs().catch((error) => {
+      highsPromise = null
+      throw error
+    })
+  }
   return highsPromise
 }
 
@@ -100,9 +103,22 @@ function highsInfeasible(objective: SquadObjectiveName, status: string, pins: Sq
 }
 
 async function instantiateHighs(): Promise<HighsHandle> {
-  const mod = (await import('highs')) as HighsModule
-  const loadHighs = mod.default
+  const mod = await import('highs')
+  const loadHighs = highsLoaderFromImport(mod)
   return loadHighs(await loaderOptions())
+}
+
+/** Vite serves highs.js as CJS; Node ESM may nest `default`. Accept either. */
+export function highsLoaderFromImport(mod: unknown): HighsLoader {
+  const seen = new Set<unknown>()
+  let current: unknown = mod
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof current === 'function') return current as HighsLoader
+    if (!current || typeof current !== 'object' || seen.has(current)) break
+    seen.add(current)
+    current = (current as { default?: unknown }).default
+  }
+  throw new Error('HiGHS package did not export a loader function')
 }
 
 async function loaderOptions(): Promise<{ locateFile?: (file: string) => string } | undefined> {
