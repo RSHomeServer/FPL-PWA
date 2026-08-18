@@ -72,6 +72,17 @@ export function evidenceFromRecord(record: RoleEvidenceRecord): RoleEvidence {
   }
 }
 
+/** Seed first, Dexie overlay wins on the same `code`. */
+export function mergeRoleEvidence(
+  seed: readonly RoleEvidenceRecord[],
+  stored: readonly RoleEvidenceRecord[] = [],
+): RoleEvidenceRecord[] {
+  const byCode = new Map<number, RoleEvidenceRecord>()
+  for (const row of seed) byCode.set(row.code, row)
+  for (const row of stored) byCode.set(row.code, row)
+  return [...byCode.values()]
+}
+
 export function roleEvidenceByCode(
   records: readonly RoleEvidenceRecord[],
 ): Map<number, RoleEvidence> {

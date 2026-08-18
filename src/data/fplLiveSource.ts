@@ -157,23 +157,35 @@ export async function loadOfficialLiveSnapshot(options?: {
   const cache = getFplCacheDb()
   const existing = await cache.liveMeta.get('current')
   if (!options?.force && isLiveFresh(existing, now)) {
-    const [players, teams, fixtures, events] = await Promise.all([
-      cache.livePlayers.toArray(),
-      cache.liveTeams.toArray(),
-      cache.liveFixtures.toArray(),
-      cache.liveEvents.toArray(),
-    ])
-    if (players.length && teams.length && existing) {
-      return { meta: existing, players, teams, fixtures, events }
-    }
+    const cached = await readPersistedLiveSnapshot(existing)
+    if (cached) return cached
   }
 
-  const snapshot = await fetchOfficialLiveSnapshot(options?.fetchImpl, now)
-  await persistLiveSnapshot(snapshot)
-  return snapshot
+  try {
+    const snapshot = await fetchOfficialLiveSnapshot(options?.fetchImpl, now)
+    await persistLiveSnapshot(snapshot)
+    return snapshot
+  } catch (error) {
+    const stale = await readPersistedLiveSnapshot(existing)
+    if (stale) return stale
+    throw error
+  }
 }
 
 export { CURRENT_SEASON_TTL_MS }
+
+async function readPersistedLiveSnapshot(existing: LiveCacheMeta | undefined): Promise<FplLiveSnapshot | null> {
+  if (!existing) return null
+  const cache = getFplCacheDb()
+  const [players, teams, fixtures, events] = await Promise.all([
+    cache.livePlayers.toArray(),
+    cache.liveTeams.toArray(),
+    cache.liveFixtures.toArray(),
+    cache.liveEvents.toArray(),
+  ])
+  if (!players.length || !teams.length) return null
+  return { meta: existing, players, teams, fixtures, events }
+}
 
 async function persistLiveSnapshot(snapshot: FplLiveSnapshot): Promise<void> {
   const cache = getFplCacheDb()

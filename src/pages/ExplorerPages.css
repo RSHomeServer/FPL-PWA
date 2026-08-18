@@ -455,3 +455,46 @@
   border-color: var(--color-border);
   color-scheme: dark;
 }
+
+.fpl-gw0-squad {
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+}
+
+.fpl-gw0-stats {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.35rem;
+  color: color-mix(in srgb, var(--color-foreground) 78%, transparent);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.fpl-gw0-diff {
+  padding: var(--space-4, 1rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.375rem);
+  background: color-mix(in srgb, var(--fpl-ink) 40%, transparent);
+}
+
+.fpl-gw0-diff p {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.fpl-gw0-diff p:last-child {
+  margin-bottom: 0;
+}
+
+.fpl-gw0-audit {
+  display: inline-block;
+  max-width: 28rem;
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: var(--font-size-xs, 0.75rem);
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--color-foreground) 72%, transparent);
+}
+
+.fpl-explorer a {
+  color: var(--fpl-lime);
+}

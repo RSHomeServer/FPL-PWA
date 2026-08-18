@@ -40,7 +40,8 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webmanifest,wasm}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
@@ -82,5 +83,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    commonjsOptions: {
+      include: [/node_modules/, /highs/],
+    },
   },
+
+  optimizeDeps: {
+    exclude: ['highs'],
+  },
+
+  assetsInclude: ['**/*.wasm'],
 })

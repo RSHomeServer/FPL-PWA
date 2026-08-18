@@ -8,6 +8,7 @@ const LINKS = [
   { to: '/compare', label: 'Compare', end: true },
   { to: '/fixtures', label: 'Fixtures', end: true },
   { to: '/teams', label: 'Teams', end: true },
+  { to: '/gw0', label: 'GW0 squads', end: true },
   { to: '/gw0-flags', label: 'GW0 flags', end: true },
 ] as const
 

@@ -3,6 +3,7 @@ import { ComparePage } from './pages/ComparePage'
 import { FixturesPage } from './pages/FixturesPage'
 import { FlagsReviewPage } from './pages/FlagsReviewPage'
 import { GameweekPage } from './pages/GameweekPage'
+import { Gw0SquadPage } from './pages/Gw0SquadPage'
 import { HomePage } from './pages/HomePage'
 import { PlayerDetailPage } from './pages/PlayerDetailPage'
 import { PlayersPage } from './pages/PlayersPage'
@@ -22,6 +23,7 @@ export const fplSite = defineSite({
     { path: '/compare', component: ComparePage },
     { path: '/fixtures', component: FixturesPage },
     { path: '/teams', component: TeamsPage },
+    { path: '/gw0', component: Gw0SquadPage },
     { path: '/gw0-flags', component: FlagsReviewPage },
   ],
 })
