@@ -5,7 +5,7 @@
  * - `historical` — completed season snapshot from vaastav (stable cache)
  * - `current` — latest published season folder (short TTL; refresh after new GWs)
  * - `live` — official FPL bootstrap + fixtures (short TTL; canonical GW0 prices)
- * - `user` — manager-specific squad/picks (unused; not ingested here)
+ * - `user` — manager-specific squad/picks (official entry API; see `fplUserSource.ts`)
  *
  * Official live API: `fantasy.premierleague.com/api/bootstrap-static/` and
  * `/api/fixtures/`. Same element/fixture ids and tenths-of-a-million prices.
@@ -200,4 +200,108 @@ export type Gw0SquadPinsRecord = {
   excludedCodes: number[]
   scope: Gw0PinScope
   updatedAt: number
+}
+
+/** Manager identity from `GET /api/entry/{entry_id}/`. */
+export type ManagerIdentity = {
+  entryId: number
+  teamName: string
+  playerFirstName: string
+  playerLastName: string
+}
+
+/**
+ * One pick row from `GET /api/entry/{id}/event/{gw}/picks/`.
+ * The API exposes `element` id only; `code` is joined from live bootstrap (`elements[].code`).
+ */
+export type SquadPick = {
+  elementId: number
+  code: number
+  position: number
+  isCaptain: boolean
+  isViceCaptain: boolean
+  multiplier: number
+}
+
+/** Summary fields from `GET /api/entry/{entry_id}/`. */
+export type ManagerEntrySummary = {
+  identity: ManagerIdentity
+  startedEvent: number
+  currentEvent: number
+  summaryOverallPoints: number
+  summaryOverallRank: number
+  lastDeadlineBankTenths: number
+  lastDeadlineValueTenths: number
+}
+
+/** `entry_history` slice embedded in gameweek picks. */
+export type ManagerGameweekEntryHistory = {
+  event: number
+  points: number
+  totalPoints: number
+  bankTenths: number
+  squadValueTenths: number
+  eventTransfers: number
+  eventTransfersCost: number
+  pointsOnBench: number | null
+}
+
+export type ManagerAutomaticSub = {
+  elementIn: number
+  elementOut: number
+  event: number
+}
+
+/** Parsed `GET /api/entry/{id}/event/{gw}/picks/`. */
+export type ManagerGameweekPicks = {
+  entryId: number
+  event: number
+  picks: SquadPick[]
+  entryHistory: ManagerGameweekEntryHistory
+  activeChip: string | null
+  automaticSubs: ManagerAutomaticSub[]
+}
+
+/** One row from `history.current[]`. */
+export type ManagerHistoryGameweek = {
+  event: number
+  points: number
+  totalPoints: number
+  bankTenths: number
+  squadValueTenths: number
+  eventTransfers: number
+  eventTransfersCost: number
+  overallRank: number | null
+}
+
+export type ManagerChipPlay = {
+  name: string
+  event: number
+  time: string
+}
+
+/** Parsed `GET /api/entry/{id}/history/`. */
+export type ManagerHistory = {
+  current: ManagerHistoryGameweek[]
+  chips: ManagerChipPlay[]
+}
+
+/** One row from `GET /api/entry/{id}/transfers/`. */
+export type ManagerTransfer = {
+  elementIn: number
+  elementInCostTenths: number
+  elementOut: number
+  elementOutCostTenths: number
+  entryId: number
+  event: number
+  time: string
+}
+
+/** Aggregate returned by `fetchManagerState`. */
+export type ManagerSnapshot = {
+  entry: ManagerEntrySummary
+  picks: ManagerGameweekPicks
+  history: ManagerHistory
+  event: number
+  fetchedAt: number
 }
