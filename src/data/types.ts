@@ -305,3 +305,74 @@ export type ManagerSnapshot = {
   event: number
   fetchedAt: number
 }
+
+/** Dexie `userProfile` row — configured manager identity + entry summary. */
+export type UserProfileRecord = {
+  entryId: number
+  teamName: string
+  playerFirstName: string
+  playerLastName: string
+  startedEvent: number
+  currentEvent: number
+  summaryOverallPoints: number
+  summaryOverallRank: number
+  lastDeadlineBankTenths: number
+  lastDeadlineValueTenths: number
+  configuredAt: number
+  lastRefreshAt: number
+}
+
+/** Raw picks API slice stored alongside normalised picks in `userPicks`. */
+export type UserPicksRawJson = {
+  picks: unknown
+  entry_history: unknown
+  active_chip: unknown
+  automatic_subs: unknown
+}
+
+/** Dexie `userPicks` row — actual squad only (never scenario edits). */
+export type UserPicksRecord = {
+  entryId: number
+  event: number
+  picks: SquadPick[]
+  rawJson: UserPicksRawJson
+  entryHistory: ManagerGameweekEntryHistory
+  activeChip: string | null
+  automaticSubs: ManagerAutomaticSub[]
+  fetchedAt: number
+}
+
+/** Dexie `userHistory` row — season history from the official API. */
+export type UserHistoryRecord = {
+  entryId: number
+  current: ManagerHistoryGameweek[]
+  chips: ManagerChipPlay[]
+  fetchedAt: number
+}
+
+/** Dexie `userTransfers` row — transfer audit log for sell-price reconstruction (LT-3). */
+export type UserTransfersRecord = {
+  entryId: number
+  transfers: ManagerTransfer[]
+  fetchedAt: number
+}
+
+/**
+ * Hypothetical transfer scenario (Dexie `transferScenarios`). Written only by scenario
+ * analysis — never by `refreshUserState`.
+ */
+export type TransferScenarioRecord = {
+  id: string
+  label: string
+  entryId: number
+  baseEvent: number
+  updatedAt: number
+}
+
+/** Result of loading persisted user state (may include stale/offline flags). */
+export type LoadedUserState = {
+  snapshot: ManagerSnapshot
+  lastRefreshAt: number
+  servingCached: boolean
+  refreshFailed: boolean
+}

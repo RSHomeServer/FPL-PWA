@@ -1013,6 +1013,22 @@
   color: #ffb4b4;
 }
 
+.fpl-team-settings__banner {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, #f9a825 18%, transparent);
+  color: var(--color-foreground);
+  font-size: 0.9rem;
+}
+
+.fpl-team-settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .fpl-team-settings__form .fpl-explorer__field {
   max-width: 16rem;
 }
