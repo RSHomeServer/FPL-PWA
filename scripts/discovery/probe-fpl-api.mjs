@@ -40,6 +40,14 @@ function pick(obj, keys) {
   return out
 }
 
+/** Omit full JSON payloads from committed probe output (shapes + samples only). */
+function summarizeProbe(row) {
+  const { json: _json, textSample, ...rest } = row
+  const out = { ...rest }
+  if (textSample && !row.ok) out.textSample = textSample.slice(0, 200)
+  return out
+}
+
 const results = []
 
 // 1 bootstrap
@@ -132,5 +140,16 @@ console.log(JSON.stringify({
   eventFlags: events.slice(0, 3).map(e => pick(e, ['id','name','is_current','is_next','finished','deadline_time'])),
   elementSample: samplePlayer ? pick(samplePlayer, ['id','code','web_name','team','element_type','now_cost','status','ep_next','selected_by_percent']) : null,
   entrySample: entryPayload ? pick(entryPayload, ['id','name','started_event','current_event','last_deadline_bank','last_deadline_value']) : null,
-  results,
+  gameSettings: root.game_settings
+    ? pick(root.game_settings, [
+        'squad_squadsize',
+        'squad_team_limit',
+        'squad_total_spend',
+        'transfers_sell_on_fee',
+        'transfers_cap',
+        'max_extra_free_transfers',
+        'stats_form_days',
+      ])
+    : null,
+  results: results.map(summarizeProbe),
 }, null, 2))
