@@ -379,13 +379,24 @@ function LabelledSeriesChart({
           />
         ) : null}
         {data.map((point, index) => (
-          <circle
-            key={`${point.x}-${index}`}
-            cx={xPos(point.x)}
-            cy={yPos(point.y)}
-            r={hover === point ? 5 : 3}
-            fill="var(--fpl-lime)"
-          />
+          <g key={`${point.x}-${index}`}>
+            <circle
+              cx={xPos(point.x)}
+              cy={yPos(point.y)}
+              r={hover === point ? 5 : point.badge ? 4.5 : 3}
+              fill={point.badge ? '#f4c430' : 'var(--fpl-lime)'}
+            />
+            {point.badge ? (
+              <text
+                x={xPos(point.x)}
+                y={yPos(point.y) - 10}
+                textAnchor="middle"
+                className="fpl-explorer__tick fpl-explorer__chart-badge"
+              >
+                {point.badge}
+              </text>
+            ) : null}
+          </g>
         ))}
         <text x={width / 2} y={height - 6} textAnchor="middle" className="fpl-explorer__axis-label">
           {xAxisLabel}
@@ -403,6 +414,7 @@ function LabelledSeriesChart({
       {hover ? (
         <p className="fpl-explorer__chart-hover" role="status">
           {hover.label ?? `${xAxisLabel} ${hover.x}`}: {fmt(hover.y)} {yAxisLabel.toLowerCase()}
+          {hover.badge ? ` · ${hover.badge}` : ''}
         </p>
       ) : (
         <p className="fpl-explorer__chart-hover fpl-explorer__chart-hover--idle">Hover the line for a value</p>

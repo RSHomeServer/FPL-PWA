@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatEvent, formatMetric, scoreParts } from './scoring'
+import { formatEvent, formatMetric, formatScoreLines, scoreParts } from './scoring'
 import type { FplPerformance } from './types'
 
 function row(partial: Partial<FplPerformance> = {}): FplPerformance {
@@ -45,6 +45,7 @@ describe('scoreParts', () => {
       'DEF',
     )
     expect(formatEvent(parts)).toBe('60+ (+2) · CS (+4)')
+    expect(formatScoreLines(parts)).toEqual(['60+ (+2)', 'CS (+4)'])
   })
 
   it('uses 10/6/5/4 goal weights and 3 per assist', () => {

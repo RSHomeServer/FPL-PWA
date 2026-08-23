@@ -3,9 +3,10 @@ import { ComparePage } from './pages/ComparePage'
 import { FixturesPage } from './pages/FixturesPage'
 import { FlagsReviewPage } from './pages/FlagsReviewPage'
 import { GameweekPage } from './pages/GameweekPage'
-import { Gw0SquadPage } from './pages/Gw0SquadPage'
+import { Gw0SquadPage, Gw0VisualPage } from './pages/Gw0SquadPage'
 import { HomePage } from './pages/HomePage'
 import { PlayerDetailPage } from './pages/PlayerDetailPage'
+import { PerfectTeamPage } from './pages/PerfectTeamPage'
 import { PlayersPage } from './pages/PlayersPage'
 import { TeamsPage } from './pages/TeamsPage'
 
@@ -23,7 +24,10 @@ export const fplSite = defineSite({
     { path: '/compare', component: ComparePage },
     { path: '/fixtures', component: FixturesPage },
     { path: '/teams', component: TeamsPage },
-    { path: '/gw0', component: Gw0SquadPage },
+    { path: '/gw0', component: Gw0VisualPage },
+    { path: '/gw0-data', component: Gw0SquadPage },
     { path: '/gw0-flags', component: FlagsReviewPage },
+    { path: '/perfect-team/dynamic', component: PerfectTeamPage },
+    { path: '/perfect-team', component: PerfectTeamPage },
   ],
 })

@@ -657,26 +657,60 @@ function ReadyView({
   }, [lpPlayers, teamShortById])
   const shortCodes = useMemo(() => new Set(shortTerm.players.map((row) => row.code)), [shortTerm])
   const longCodes = useMemo(() => new Set(longTerm.players.map((row) => row.code)), [longTerm])
+  const [view15, setView15] = useState<'shortTerm' | 'longTerm'>('shortTerm')
+
+  const selectedSquad = view15 === 'shortTerm' ? shortTerm : longTerm
+  const selectedCaptain = view15 === 'shortTerm' ? shortCaptain : longCaptain
+  const otherCodes = view15 === 'shortTerm' ? longCodes : shortCodes
+  const selectedCodes = view15 === 'shortTerm' ? shortCodes : longCodes
+
+  const selectedLabel = view15 === 'shortTerm' ? 'Short-term 15' : 'Long-term 15'
+  const otherLabel = view15 === 'shortTerm' ? 'Long-term 15' : 'Short-term 15'
+
+  const selectedCodesSet = selectedCodes
 
   return (
     <Stack gap="lg">
+      <div className="fpl-explorer__toolbar">
+        <Label className="fpl-explorer__field">
+          Show 15
+          <Select value={view15} onChange={(event) => setView15(event.target.value as 'shortTerm' | 'longTerm')}>
+            <option value="shortTerm">Short-term 15</option>
+            <option value="longTerm">Long-term 15</option>
+          </Select>
+        </Label>
+        <p className="fpl-explorer__meta">
+          LP pool {lpPlayers.length} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs long-term{' '}
+          {fmt(overlap.longGw1)}.
+        </p>
+      </div>
+
       <div className="fpl-gw0-pitches">
         <SquadPanel
-          title="Short-term 15"
-          blurb="Max expected GW1 points."
-          squad={shortTerm}
-          captain={shortCaptain}
-          shorts={shorts}
-        />
-        <SquadPanel
-          title="Long-term 15"
-          blurb="Max equal-weight expected GW1–GW6 points."
-          squad={longTerm}
-          captain={longCaptain}
+          title={view15 === 'shortTerm' ? 'Short-term 15' : 'Long-term 15'}
+          blurb={view15 === 'shortTerm' ? 'Max expected GW1 points.' : 'Max equal-weight expected GW1–GW6 points.'}
+          squad={selectedSquad}
+          captain={selectedCaptain}
           shorts={shorts}
         />
       </div>
-      <Gw0PoolCharts pool={lpPlayers} shortCodes={shortCodes} longCodes={longCodes} />
+
+      <PoolPlayersTable
+        players={lpPlayers}
+        selectedCodes={selectedCodesSet}
+        captainCode={selectedCaptain.captain.code}
+        viceCode={selectedCaptain.vice.code}
+      />
+
+      <Gw0PoolCharts
+        pool={lpPlayers}
+        metricDefault="ePtsGw1"
+        selectedCodes={selectedCodesSet}
+        otherCodes={otherCodes}
+        selectedLabel={selectedLabel}
+        otherLabel={otherLabel}
+      />
+
       <Gw0MetricsExplainer />
       <p className="fpl-explorer__meta">
         LP pool {lpPool} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs
@@ -713,6 +747,118 @@ function ReadyView({
         longCaptain={longCaptain}
       />
     </Stack>
+  )
+}
+
+function PoolPlayersTable({
+  players,
+  selectedCodes,
+  captainCode,
+  viceCode,
+}: {
+  players: readonly Gw0Projection[]
+  selectedCodes: ReadonlySet<number>
+  captainCode: number
+  viceCode: number
+}) {
+  const [query, setQuery] = useState('')
+  const inSelectedHint = 'Whether this LP-pool player is in the selected 15 (C/V if captain/vice).'
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return players
+    return players.filter((row) => {
+      const club = row.teamShortName ?? ''
+      const pos = positionPool(row.position)
+      const hay = `${row.current.webName} ${club} ${pos} ${row.code}`.toLowerCase()
+      return hay.includes(needle)
+    })
+  }, [players, query])
+
+  return (
+    <section className="fpl-gw0-squad">
+      <h2 className="fpl-explorer__title">LP pool — all players</h2>
+      <p className="fpl-explorer__meta">
+        Marked with <strong>✓</strong> (or <strong>C</strong>/<strong>V</strong>) when they belong to the selected 15.
+      </p>
+
+      <div className="fpl-explorer__toolbar">
+        <Label className="fpl-explorer__field">
+          Search
+          <TextField
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Name, club, or pos"
+          />
+        </Label>
+      </div>
+
+      <DataTable
+        caption="LP-pool players — compare selected 15 membership"
+        defaultSort={{ id: 'in15', direction: 'desc' }}
+        columns={[
+          {
+            id: 'player',
+            label: 'Player',
+            hint: HINT.player,
+            sortValue: (row) => row.current.webName,
+            render: (row) => <PlayerLabel player={row.current} />,
+          },
+          {
+            id: 'pos',
+            label: 'Pos',
+            hint: HINT.pos,
+            sortValue: (row) => positionPool(row.position),
+            render: (row) => positionPool(row.position),
+          },
+          {
+            id: 'club',
+            label: 'Club',
+            hint: HINT.club,
+            sortValue: (row) => row.teamShortName,
+            render: (row) => <TeamLabel team={clubOf(row)} />,
+          },
+          {
+            id: 'price',
+            label: 'Price',
+            hint: HINT.price,
+            sortValue: (row) => row.nowCostTenths,
+            render: (row) => formatGbpFromTenths(row.nowCostTenths),
+          },
+          {
+            id: 'gw1',
+            label: 'E GW1',
+            hint: HINT.gw1,
+            sortValue: (row) => row.ePtsGw1,
+            render: (row) => <HintedValue hint={HINT.gw1}>{fmt(row.ePtsGw1)}</HintedValue>,
+          },
+          {
+            id: 'in15',
+            label: 'In selected 15',
+            hint: inSelectedHint,
+            sortValue: (row) => (selectedCodes.has(row.code) ? 1 : 0),
+            render: (row) => {
+              if (row.code === captainCode) return <span className="fpl-gw0-captain-mark">C</span>
+              if (row.code === viceCode) return 'V'
+              return selectedCodes.has(row.code) ? '✓' : '—'
+            },
+          },
+        ]}
+        rows={visible}
+        empty={query.trim() ? 'No LP-pool players match that search.' : 'LP pool is empty.'}
+        rowKey={(row) => row.code}
+        rowStyle={(row) => teamRowStyle(clubOf(row))}
+        rowClassName={(row) =>
+          row.code === captainCode
+            ? 'fpl-gw0-row--captain'
+            : row.code === viceCode
+              ? 'fpl-gw0-row--vice'
+              : selectedCodes.has(row.code)
+                ? 'fpl-gw0-row--in-selected'
+                : undefined
+        }
+      />
+    </section>
   )
 }
 
@@ -933,7 +1079,9 @@ function SquadPanel({
           {ep.missing ? ` · ${ep.missing} missing` : ''} — reference only
         </li>
       </ul>
-      <DataTable
+      <details className="fpl-gw0-selected15-table">
+        <summary tabIndex={0}>Selected 15 — full audit table</summary>
+        <DataTable
         caption={`${title} — pick role, stats, captain suggestion, and GW1 audit`}
         defaultSort={{ id: 'role', direction: 'asc' }}
         rowStyle={(row) => teamRowStyle(clubOf(row))}
@@ -1087,6 +1235,7 @@ function SquadPanel({
         empty="Solver returned no players."
         rowKey={(row) => row.code}
       />
+      </details>
       <p className="fpl-explorer__meta">
         Price {formatGbpFromTenths(d.spendTenths)} · Σ E GW1 {fmt(d.ePtsGw1)} · Σ E GW1–6 {fmt(d.ePtsGw16)}
         {' · '}£{poundsFromTenths(d.remainingTenths).toFixed(1)}m unspent · Σ GW1 with captain{' '}
