@@ -108,6 +108,7 @@ export type GwFixtureAudit = {
   fixtureId: number
   fdr: FdrBucket | null
   home: boolean
+  opponentTeamId: number
   attackFactor: number
   csFactor: number
   blendedFactor: number
@@ -383,6 +384,7 @@ function projectGw(
       fixtureId: fixture?.fixtureId ?? 0,
       fdr: fixture?.fdr ?? null,
       home: fixture?.home ?? true,
+      opponentTeamId: fixture?.opponentTeamId ?? 0,
       attackFactor: attack,
       csFactor: cs,
       blendedFactor: blended,

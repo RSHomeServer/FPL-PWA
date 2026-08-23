@@ -11,9 +11,11 @@ import type {
   FplPlayer,
   FplTeam,
   LiveCacheMeta,
+  Gw0SquadPinsRecord,
   RoleEvidenceRecord,
   SeasonCacheMeta,
 } from './types'
+import type { PerfectDynamicCacheRecord, PerfectStaticCacheRecord } from './perfectTeamCache'
 
 export type CatalogRecord = {
   id: 'seasons'
@@ -35,6 +37,9 @@ export type FplCacheDb = ReturnType<typeof createSongaraDb> & {
   liveFixtures: Table<FplFixture>
   liveEvents: Table<FplLiveEvent>
   roleEvidence: Table<RoleEvidenceRecord>
+  gw0SquadPins: Table<Gw0SquadPinsRecord>
+  perfectDynamic: Table<PerfectDynamicCacheRecord>
+  perfectStatic: Table<PerfectStaticCacheRecord>
 }
 
 let db: FplCacheDb | null = null
@@ -69,6 +74,19 @@ export function getFplCacheDb(): FplCacheDb {
         version: 3,
         stores: {
           roleEvidence: 'code, liveId',
+        },
+      },
+      {
+        version: 4,
+        stores: {
+          gw0SquadPins: 'id',
+        },
+      },
+      {
+        version: 5,
+        stores: {
+          perfectDynamic: 'id, seasonId',
+          perfectStatic: 'id, seasonId, round',
         },
       },
     ],

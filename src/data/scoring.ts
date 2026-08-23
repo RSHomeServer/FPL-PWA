@@ -122,9 +122,12 @@ export function scoreParts(
 
 export function formatEvent(parts: readonly ScorePart[]): string {
   if (parts.length === 0) return 'Did not play'
-  return parts
-    .map((part) => `${part.label} (${part.points > 0 ? '+' : ''}${part.points})`)
-    .join(' · ')
+  return formatScoreLines(parts).join(' · ')
+}
+
+/** One line per scoring part, e.g. `2G (+12)`. */
+export function formatScoreLines(parts: readonly ScorePart[]): string[] {
+  return parts.map((part) => `${part.label} (${part.points > 0 ? '+' : ''}${part.points})`)
 }
 
 export function formatMetric(value: number | null, applicable: boolean): string {

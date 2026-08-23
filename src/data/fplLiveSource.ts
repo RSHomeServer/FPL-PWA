@@ -11,8 +11,25 @@ import type {
   LiveCacheMeta,
 } from './types'
 
-export const FPL_BOOTSTRAP_URL = 'https://fantasy.premierleague.com/api/bootstrap-static/'
-export const FPL_FIXTURES_URL = 'https://fantasy.premierleague.com/api/fixtures/'
+export const FPL_API_ORIGIN = 'https://fantasy.premierleague.com'
+export const FPL_BOOTSTRAP_PATH = '/api/bootstrap-static/'
+export const FPL_FIXTURES_PATH = '/api/fixtures/'
+/** Same-origin Vite proxy prefix so the browser never hits FPL CORS. */
+export const FPL_BROWSER_PROXY_PREFIX = '/fpl-api'
+export const FPL_BOOTSTRAP_URL = `${FPL_API_ORIGIN}${FPL_BOOTSTRAP_PATH}`
+export const FPL_FIXTURES_URL = `${FPL_API_ORIGIN}${FPL_FIXTURES_PATH}`
+
+export type OfficialApiRuntime = 'browser' | 'node'
+
+export function officialApiRuntime(): OfficialApiRuntime {
+  return typeof document === 'undefined' ? 'node' : 'browser'
+}
+
+/** Node talks to FPL directly. The browser uses `/fpl-api` (Vite proxy, not a backend). */
+export function officialApiUrl(path: string, runtime: OfficialApiRuntime = officialApiRuntime()): string {
+  if (runtime === 'browser') return `${FPL_BROWSER_PROXY_PREFIX}${path}`
+  return `${FPL_API_ORIGIN}${path}`
+}
 
 export type FetchLike = typeof fetch
 
@@ -123,8 +140,8 @@ export function mapOfficialFixtures(payload: unknown, seasonId: string): FplFixt
 export function createOfficialLiveSource(fetchImpl: FetchLike = fetch): FplLiveSource {
   return {
     kind: 'official-api',
-    fetchBootstrap: () => fetchOfficialJson(FPL_BOOTSTRAP_URL, fetchImpl),
-    fetchFixtures: () => fetchOfficialJson(FPL_FIXTURES_URL, fetchImpl),
+    fetchBootstrap: () => fetchOfficialJson(officialApiUrl(FPL_BOOTSTRAP_PATH), fetchImpl),
+    fetchFixtures: () => fetchOfficialJson(officialApiUrl(FPL_FIXTURES_PATH), fetchImpl),
   }
 }
 
@@ -243,7 +260,7 @@ function wrapFetchError(url: string, error: unknown): FplLiveFetchError {
   const corsLikely =
     error instanceof TypeError || /failed to fetch|cors|networkerror/i.test(message)
   const hint = corsLikely
-    ? ' Browser CORS likely blocked fantasy.premierleague.com. Do not add a backend; the Node CLI fetch is the prototype path.'
+    ? ' The browser must use the same-origin /fpl-api Vite proxy, not fantasy.premierleague.com directly.'
     : ''
   return new FplLiveFetchError(
     `Official FPL API request failed for ${url}: ${message}.${hint}`,

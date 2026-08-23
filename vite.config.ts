@@ -11,8 +11,52 @@ const BACKGROUND = '#0a1a12'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 
+/** Same-origin proxy for official FPL JSON. Not a product backend — Vite only. */
+const fplApiProxy = {
+  '/fpl-api': {
+    target: 'https://fantasy.premierleague.com',
+    changeOrigin: true,
+    secure: true,
+    rewrite: (path: string) => path.replace(/^\/fpl-api/, ''),
+    configure: (proxy: {
+      on: (event: 'proxyReq', listener: (proxyReq: { setHeader: (name: string, value: string) => void }) => void) => void
+    }) => {
+      proxy.on('proxyReq', (proxyReq) => {
+        proxyReq.setHeader('Accept', 'application/json')
+        proxyReq.setHeader(
+          'User-Agent',
+          'FPL-PWA/0.0 (GW0 prototype; https://github.com/RSHomeServer/FPL-PWA)',
+        )
+      })
+    },
+  },
+}
+
 export default defineConfig({
   plugins: [
+    {
+      name: 'highs-esm-default',
+      enforce: 'pre',
+      transform(code, id) {
+        if (!id.includes('highs/build/highs.js')) return null
+        if (code.includes('export default Module')) return null
+        return { code: `${code}\nexport default Module;\n`, map: null }
+      },
+    },
+    {
+      name: 'favicon-ico',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.split('?')[0] === '/favicon.ico') {
+            res.statusCode = 302
+            res.setHeader('Location', '/favicon.svg')
+            res.end()
+            return
+          }
+          next()
+        })
+      },
+    },
     appVersionPlugin(),
     react(),
     VitePWA({
@@ -40,12 +84,17 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/fpl-api\//],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webmanifest,wasm}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
               url.hostname === 'cdn.jsdelivr.net' || url.hostname === 'api.github.com',
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/fpl-api/'),
             handler: 'NetworkOnly',
           },
         ],
@@ -72,12 +121,14 @@ export default defineConfig({
     port: 5303,
     strictPort: true,
     allowedHosts: ['.dev.songara.uk'],
+    proxy: fplApiProxy,
   },
 
   preview: {
     host: '127.0.0.1',
     port: 5304,
     strictPort: true,
+    proxy: fplApiProxy,
   },
 
   build: {

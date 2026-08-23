@@ -36,6 +36,8 @@ export type SeriesPoint = {
   x: number
   y: number
   label?: string
+  /** Short chip / event badge drawn above the point (e.g. TC, BB). */
+  badge?: string
 }
 
 export function formSeries(

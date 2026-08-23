@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { nameInitials, playerPhotoUrl, teamCrestUrl } from '../data/media'
+import { nameInitials, playerPhotoUrl, teamCrestUrl, teamShirtUrl } from '../data/media'
 import { playerDisplayName } from '../data/parse'
 import type { FplPlayer, FplTeam } from '../data/types'
 
@@ -7,17 +7,25 @@ export function PlayerPhoto({
   code,
   name,
   size = 32,
+  className,
+  loading = 'lazy',
 }: {
   code: number
   name: string
   size?: number
+  className?: string
+  loading?: 'lazy' | 'eager'
 }) {
   const src = playerPhotoUrl(code)
   const [failed, setFailed] = useState(false)
 
   if (!src || failed) {
     return (
-      <span className="fpl-media fpl-media--fallback" style={{ width: size, height: size }} aria-hidden>
+      <span
+        className={['fpl-media', 'fpl-media--fallback', className].filter(Boolean).join(' ')}
+        style={{ width: size, height: size }}
+        aria-hidden
+      >
         {nameInitials(name)}
       </span>
     )
@@ -25,7 +33,49 @@ export function PlayerPhoto({
 
   return (
     <img
-      className="fpl-media"
+      className={['fpl-media', className].filter(Boolean).join(' ')}
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      loading={loading}
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+export function TeamCrest({
+  code,
+  name,
+  size = 20,
+  className,
+}: {
+  code: number
+  name: string
+  size?: number
+  className?: string
+}) {
+  const src = teamCrestUrl(code)
+  const [failed, setFailed] = useState(false)
+  const fallback = name.trim().slice(0, 3).toUpperCase() || '?'
+
+  if (!src || failed) {
+    return (
+      <span
+        className={['fpl-media', 'fpl-media--crest-fallback', className].filter(Boolean).join(' ')}
+        style={{ minWidth: size }}
+        aria-hidden
+      >
+        {fallback}
+      </span>
+    )
+  }
+
+  return (
+    <img
+      className={['fpl-media', 'fpl-media--crest', className].filter(Boolean).join(' ')}
       src={src}
       alt=""
       width={size}
@@ -38,34 +88,42 @@ export function PlayerPhoto({
   )
 }
 
-export function TeamCrest({
-  code,
+export function ShirtImage({
+  teamCode,
   name,
-  size = 20,
+  keeper = false,
+  size = 56,
+  className,
 }: {
-  code: number
+  teamCode: number
   name: string
+  keeper?: boolean
   size?: number
+  className?: string
 }) {
-  const src = teamCrestUrl(code)
+  const src = teamShirtUrl(teamCode, keeper)
   const [failed, setFailed] = useState(false)
-  const fallback = name.trim().slice(0, 3).toUpperCase() || '?'
+  const height = Math.round(size * 1.2)
 
   if (!src || failed) {
     return (
-      <span className="fpl-media fpl-media--crest-fallback" style={{ minWidth: size }} aria-hidden>
-        {fallback}
+      <span
+        className={['fpl-media', 'fpl-media--shirt-fallback', className].filter(Boolean).join(' ')}
+        style={{ width: size, height }}
+        aria-hidden
+      >
+        {nameInitials(name)}
       </span>
     )
   }
 
   return (
     <img
-      className="fpl-media fpl-media--crest"
+      className={['fpl-media', 'fpl-media--shirt', className].filter(Boolean).join(' ')}
       src={src}
       alt=""
       width={size}
-      height={size}
+      height={height}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"

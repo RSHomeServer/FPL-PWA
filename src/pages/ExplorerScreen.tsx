@@ -80,6 +80,7 @@ export function DataTable<T>({
   rowKey,
   defaultSort,
   rowStyle,
+  rowClassName,
 }: {
   caption: string
   columns: readonly DataTableColumn<T>[]
@@ -88,6 +89,7 @@ export function DataTable<T>({
   rowKey?: (row: T, index: number) => string | number
   defaultSort?: DataTableSort
   rowStyle?: (row: T) => CSSProperties | undefined
+  rowClassName?: (row: T) => string | undefined
 }) {
   const [sort, setSort] = useState<DataTableSort | null>(defaultSort ?? null)
 
@@ -128,7 +130,13 @@ export function DataTable<T>({
                     : 'descending'
                   : 'none'
               return (
-                <th key={column.id} scope="col" aria-sort={ariaSort} title={column.hint}>
+                <th
+                  key={column.id}
+                  scope="col"
+                  aria-sort={ariaSort}
+                  title={column.hint}
+                  tabIndex={column.hint && !column.sortValue ? 0 : undefined}
+                >
                   {column.sortValue ? (
                     <button
                       type="button"
@@ -162,7 +170,11 @@ export function DataTable<T>({
             sorted.map((row, index) => (
               <tr
                 key={rowKey ? rowKey(row, index) : index}
-                className={rowStyle?.(row) ? 'fpl-explorer__row--team' : undefined}
+                className={
+                  [rowStyle?.(row) ? 'fpl-explorer__row--team' : undefined, rowClassName?.(row)]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
                 style={rowStyle?.(row)}
               >
                 {columns.map((column) => (
@@ -174,6 +186,17 @@ export function DataTable<T>({
         </tbody>
       </table>
     </div>
+  )
+}
+
+export function HintedValue({ hint, children }: { hint: string; children: ReactNode }) {
+  return (
+    <span className="fpl-explorer__hinted" tabIndex={0} title={hint}>
+      <span className="fpl-explorer__hinted-text">{children}</span>
+      <span className="fpl-explorer__cell-hint" role="tooltip">
+        {hint}
+      </span>
+    </span>
   )
 }
 
@@ -356,13 +379,24 @@ function LabelledSeriesChart({
           />
         ) : null}
         {data.map((point, index) => (
-          <circle
-            key={`${point.x}-${index}`}
-            cx={xPos(point.x)}
-            cy={yPos(point.y)}
-            r={hover === point ? 5 : 3}
-            fill="var(--fpl-lime)"
-          />
+          <g key={`${point.x}-${index}`}>
+            <circle
+              cx={xPos(point.x)}
+              cy={yPos(point.y)}
+              r={hover === point ? 5 : point.badge ? 4.5 : 3}
+              fill={point.badge ? '#f4c430' : 'var(--fpl-lime)'}
+            />
+            {point.badge ? (
+              <text
+                x={xPos(point.x)}
+                y={yPos(point.y) - 10}
+                textAnchor="middle"
+                className="fpl-explorer__tick fpl-explorer__chart-badge"
+              >
+                {point.badge}
+              </text>
+            ) : null}
+          </g>
         ))}
         <text x={width / 2} y={height - 6} textAnchor="middle" className="fpl-explorer__axis-label">
           {xAxisLabel}
@@ -380,6 +414,7 @@ function LabelledSeriesChart({
       {hover ? (
         <p className="fpl-explorer__chart-hover" role="status">
           {hover.label ?? `${xAxisLabel} ${hover.x}`}: {fmt(hover.y)} {yAxisLabel.toLowerCase()}
+          {hover.badge ? ` · ${hover.badge}` : ''}
         </p>
       ) : (
         <p className="fpl-explorer__chart-hover fpl-explorer__chart-hover--idle">Hover the line for a value</p>

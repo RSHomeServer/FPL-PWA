@@ -1,11 +1,21 @@
+import { formatGbpFromTenths } from '../data/prices'
 import {
   assembleSquad,
+  BUDGET_TENTHS,
+  MAX_PER_CLUB,
   buildSquadLp,
+  diagnosePins,
+  formatPinInfeasibility,
   selectedFromColumns,
+  SquadInfeasibleError,
+  uniquePinCodes,
   type FormationId,
   type LpCandidate,
   type OrderedSquad,
+  type PinViolation,
   type SquadObjectiveName,
+  type SquadPinScope,
+  type SquadPins,
 } from './gw0Squad'
 
 /**
@@ -24,14 +34,17 @@ type HighsHandle = {
   ) => { Status: string; Columns: Record<string, { Primal?: number }> }
 }
 
-type HighsModule = {
-  default: (options?: { locateFile?: (file: string) => string }) => Promise<HighsHandle>
-}
+type HighsLoader = (options?: { locateFile?: (file: string) => string }) => Promise<HighsHandle>
 
 let highsPromise: Promise<HighsHandle> | null = null
 
 export async function loadGw0Highs(): Promise<HighsHandle> {
-  if (!highsPromise) highsPromise = instantiateHighs()
+  if (!highsPromise) {
+    highsPromise = instantiateHighs().catch((error) => {
+      highsPromise = null
+      throw error
+    })
+  }
   return highsPromise
 }
 
@@ -39,9 +52,14 @@ export async function solveSquadObjective(
   candidates: readonly LpCandidate[],
   objective: SquadObjectiveName,
   formation: FormationId,
+  pins: SquadPins = {},
 ): Promise<OrderedSquad> {
+  const diagnosed = diagnosePins(candidates, pins)
+  if (diagnosed.length) {
+    throw new SquadInfeasibleError(formatPinInfeasibility(diagnosed), diagnosed)
+  }
   const highs = await loadGw0Highs()
-  const lp = buildSquadLp(candidates, objective)
+  const lp = buildSquadLp(candidates, objective, pins)
   const result = highs.solve(lp, {
     output_flag: false,
     log_to_console: false,
@@ -50,7 +68,8 @@ export async function solveSquadObjective(
     random_seed: 1,
   })
   if (result.Status !== 'Optimal') {
-    throw new Error(`HiGHS ${objective} status ${result.Status}`)
+    const violations = highsInfeasible(objective, result.Status, pins)
+    throw new SquadInfeasibleError(formatPinInfeasibility(violations), violations)
   }
   const picked = selectedFromColumns(result.Columns, candidates)
   return assembleSquad(picked, objective, formation)
@@ -59,16 +78,47 @@ export async function solveSquadObjective(
 export async function solveBothObjectives(
   candidates: readonly LpCandidate[],
   formation: FormationId,
+  pins: SquadPins = {},
+  scope: SquadPinScope = 'both',
 ): Promise<{ shortTerm: OrderedSquad; longTerm: OrderedSquad }> {
-  const shortTerm = await solveSquadObjective(candidates, 'shortTerm', formation)
-  const longTerm = await solveSquadObjective(candidates, 'longTerm', formation)
+  const shortPins = scope === 'longTerm' ? {} : pins
+  const longPins = scope === 'shortTerm' ? {} : pins
+  const shortTerm = await solveSquadObjective(candidates, 'shortTerm', formation, shortPins)
+  const longTerm = await solveSquadObjective(candidates, 'longTerm', formation, longPins)
   return { shortTerm, longTerm }
 }
 
+function highsInfeasible(objective: SquadObjectiveName, status: string, pins: SquadPins): PinViolation[] {
+  const locked = uniquePinCodes(pins.lockedCodes)
+  const excluded = uniquePinCodes(pins.excludedCodes)
+  const lockBit = locked.length ? ` Locked: ${locked.join(', ')}.` : ''
+  const exclBit = excluded.length ? ` Excluded: ${excluded.join(', ')}.` : ''
+  return [
+    {
+      code: 'infeasible',
+      detail: `HiGHS ${objective} status ${status}. Binding FPL rules: 15 players, ${formatGbpFromTenths(BUDGET_TENTHS)}, 2 GK / 5 DEF / 5 MID / 3 FWD, max ${MAX_PER_CLUB} per club.${lockBit}${exclBit}`,
+      lockedCodes: locked,
+    },
+  ]
+}
+
 async function instantiateHighs(): Promise<HighsHandle> {
-  const mod = (await import('highs')) as HighsModule
-  const loadHighs = mod.default
+  const mod = await import('highs')
+  const loadHighs = highsLoaderFromImport(mod)
   return loadHighs(await loaderOptions())
+}
+
+/** Vite serves highs.js as CJS; Node ESM may nest `default`. Accept either. */
+export function highsLoaderFromImport(mod: unknown): HighsLoader {
+  const seen = new Set<unknown>()
+  let current: unknown = mod
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof current === 'function') return current as HighsLoader
+    if (!current || typeof current !== 'object' || seen.has(current)) break
+    seen.add(current)
+    current = (current as { default?: unknown }).default
+  }
+  throw new Error('HiGHS package did not export a loader function')
 }
 
 async function loaderOptions(): Promise<{ locateFile?: (file: string) => string } | undefined> {

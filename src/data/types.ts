@@ -186,3 +186,18 @@ export type RoleEvidenceRecord = RoleEvidence & {
   webName: string
   updatedAt: number
 }
+
+/** Which 15-man objective(s) lock/exclude pins apply to. Default both. */
+export type Gw0PinScope = 'both' | 'shortTerm' | 'longTerm'
+
+/**
+ * Dexie singleton for GW0 lock/exclude. Seed empty. Distinct from
+ * vaastav / live / roleEvidence stores.
+ */
+export type Gw0SquadPinsRecord = {
+  id: 'current'
+  lockedCodes: number[]
+  excludedCodes: number[]
+  scope: Gw0PinScope
+  updatedAt: number
+}

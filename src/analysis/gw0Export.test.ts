@@ -28,6 +28,8 @@ describe('GW0 export payload', () => {
       epNextMissing: 0,
       epNextDelta: 1.5,
     })
+    expect(payload.pins).toEqual({ lockedCodes: [], excludedCodes: [], scope: 'both' })
+    expect(payload.shortTerm.captain).toBeNull()
     expect(payload.shortTerm.xi).toEqual([
       {
         code: 10,
@@ -43,6 +45,8 @@ describe('GW0 export payload', () => {
         epNextDelta: 1.5,
         role: 'XI',
         benchOrder: null,
+        captaincy: null,
+        pin: null,
       },
     ])
     expect(payload.shortTerm.bench).toEqual([
@@ -60,6 +64,8 @@ describe('GW0 export payload', () => {
         epNextDelta: 0,
         role: 'bench',
         benchOrder: 1,
+        captaincy: null,
+        pin: null,
       },
     ])
     expect(payload.longTerm.formation).toBe('4-4-2')
@@ -76,11 +82,38 @@ describe('GW0 export payload', () => {
 
     const csv = gw0ExportCsv(payload)
     expect(csv).toContain(`# generatedAt,"${generatedAt}"`)
+    expect(csv).toContain('# lockedCodes,')
+    expect(csv).toContain('# pinScope,"both"')
     expect(csv).toContain('"shortTerm","3-4-3",99.5,0.5,6.5,30,5,2,0,1.5')
     expect(csv).toContain('"shortTerm","XI",,"Saka","Bukayo","Saka",10,"MID","ARS",10,4.5,20,3,1.5')
     expect(csv).toContain('"Le Fée"')
     expect(gw0ExportFilename(generatedAt, 'json')).toBe('gw0-squads-2026-08-18T12-00-00-000Z.json')
     expect(gw0ExportFilename(generatedAt, 'csv')).toBe('gw0-squads-2026-08-18T12-00-00-000Z.csv')
+  })
+
+  it('includes lock/exclude sets and the captain suggestion', () => {
+    const withPins = buildGw0ExportPayload(shortSquad(), longSquad(), generatedAt, {
+      pins: { lockedCodes: [10], excludedCodes: [21], scope: 'both' },
+      shortCaptain: {
+        captain: { code: 10, current: { webName: 'Saka' }, ePtsGw1: 4.5 },
+        vice: { code: 11, current: { webName: "Le Fée" }, ePtsGw1: 2 },
+        captainDoubledGw1: 9,
+        squadGw1WithCaptain: 11,
+        tossUp: false,
+        tossUpDetail: null,
+      },
+    })
+    expect(withPins.pins.lockedCodes).toEqual([10])
+    expect(withPins.pins.excludedCodes).toEqual([21])
+    expect(withPins.shortTerm.captain?.captainWebName).toBe('Saka')
+    expect(withPins.shortTerm.xi[0]?.captaincy).toBe('C')
+    expect(withPins.shortTerm.xi[0]?.pin).toBe('lock')
+    expect(withPins.longTerm.bench[0]?.pin).toBe('exclude')
+    const csv = gw0ExportCsv(withPins)
+    expect(csv).toContain('# lockedCodes,10')
+    expect(csv).toContain('# excludedCodes,21')
+    expect(csv).toContain('"Saka","Le Fée",9,11')
+    expect(csv).toContain(',C,lock')
   })
 })
 

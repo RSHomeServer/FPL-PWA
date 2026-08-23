@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  FPL_API_ORIGIN,
+  FPL_BOOTSTRAP_PATH,
+  FPL_BOOTSTRAP_URL,
+  FPL_BROWSER_PROXY_PREFIX,
+  FPL_FIXTURES_PATH,
+  FPL_FIXTURES_URL,
   mapOfficialBootstrap,
   mapOfficialFixtures,
+  officialApiUrl,
   parseLivePlayer,
   recordFromJson,
   seasonIdFromDeadline,
@@ -110,6 +117,20 @@ describe('official JSON mapping', () => {
     expect(seasonIdFromDeadline('2026-08-21T17:30:00Z')).toBe('2026-27')
     expect(parseOptionalFloat('4.0')).toBe(4)
     expect(parseLivePlayer('2026-27', recordFromJson(bootstrap.elements[0]))?.epNext).toBe(4)
+  })
+})
+
+describe('official API URLs', () => {
+  it('keeps Node on the official origin and the browser on the Vite proxy', () => {
+    expect(officialApiUrl(FPL_BOOTSTRAP_PATH, 'node')).toBe(FPL_BOOTSTRAP_URL)
+    expect(officialApiUrl(FPL_FIXTURES_PATH, 'node')).toBe(FPL_FIXTURES_URL)
+    expect(officialApiUrl(FPL_BOOTSTRAP_PATH, 'browser')).toBe(
+      `${FPL_BROWSER_PROXY_PREFIX}${FPL_BOOTSTRAP_PATH}`,
+    )
+    expect(officialApiUrl(FPL_FIXTURES_PATH, 'browser')).toBe(
+      `${FPL_BROWSER_PROXY_PREFIX}${FPL_FIXTURES_PATH}`,
+    )
+    expect(FPL_BOOTSTRAP_URL.startsWith(FPL_API_ORIGIN)).toBe(true)
   })
 })
 

@@ -47,6 +47,44 @@ export type SquadViolation = {
   detail: string
 }
 
+/** Lock/exclude pins applied to the next 15-man solve. */
+export type SquadPinScope = 'both' | 'shortTerm' | 'longTerm'
+
+export type SquadPins = {
+  lockedCodes?: readonly number[]
+  excludedCodes?: readonly number[]
+}
+
+export type PinViolationCode =
+  | 'lock-exclude-conflict'
+  | 'unknown-lock'
+  | 'club'
+  | 'budget'
+  | 'position'
+  | 'size'
+  | 'infeasible'
+
+export type PinViolation = {
+  code: PinViolationCode
+  detail: string
+  lockedCodes: number[]
+}
+
+/** Thrown when locks/excludes make the official FPL 15 infeasible. Locks are never dropped. */
+export class SquadInfeasibleError extends Error {
+  readonly violations: readonly PinViolation[]
+
+  constructor(message: string, violations: readonly PinViolation[]) {
+    super(message)
+    this.name = 'SquadInfeasibleError'
+    this.violations = violations
+  }
+}
+
+export function isSquadInfeasibleError(error: unknown): error is SquadInfeasibleError {
+  return error instanceof SquadInfeasibleError
+}
+
 export type FixtureCliff = {
   flagged: boolean
   hardGw46: number
@@ -157,8 +195,14 @@ export function isLegalSquad(players: readonly Gw0Projection[]): boolean {
 /**
  * CPLEX LP text for HiGHS. Binary x_p on the LP pool; maximise the named
  * objective. Constraints match modelling plan §14.
+ * Optional pins: lock → x_p = 1, exclude → x_p = 0. Unknown lock codes are
+ * omitted here; `diagnosePins` / the solver refuse them instead of dropping a lock.
  */
-export function buildSquadLp(candidates: readonly LpCandidate[], objective: SquadObjectiveName): string {
+export function buildSquadLp(
+  candidates: readonly LpCandidate[],
+  objective: SquadObjectiveName,
+  pins: SquadPins = {},
+): string {
   if (candidates.length < SQUAD_SIZE) {
     throw new Error(`LP pool has ${candidates.length} players; need at least ${SQUAD_SIZE}`)
   }
@@ -173,11 +217,163 @@ export function buildSquadLp(candidates: readonly LpCandidate[], objective: Squa
     ` budget: ${candidates.map((row) => `${row.projection.nowCostTenths} ${row.varName}`).join(' + ')} <= ${BUDGET_TENTHS}`,
     ...positionRows(candidates),
     ...clubRows(candidates),
+    ...pinRows(candidates, pins),
     'Binaries',
     candidates.map((row) => row.varName).join(' '),
     'End',
   ]
   return `${lines.join('\n')}\n`
+}
+
+export function uniquePinCodes(codes: readonly number[] | undefined): number[] {
+  return [...new Set(codes ?? [])].filter((code) => Number.isInteger(code) && code > 0).sort((a, b) => a - b)
+}
+
+/**
+ * Explain why the current lock/exclude set cannot be a legal FPL 15.
+ * Never suggests dropping a lock.
+ */
+export function diagnosePins(candidates: readonly LpCandidate[], pins: SquadPins = {}): PinViolation[] {
+  const lockedCodes = uniquePinCodes(pins.lockedCodes)
+  const excludedCodes = uniquePinCodes(pins.excludedCodes)
+  const excluded = new Set(excludedCodes)
+  const byCode = new Map(candidates.map((row) => [row.projection.code, row]))
+  const violations: PinViolation[] = []
+
+  const both: number[] = []
+  for (const code of lockedCodes) {
+    if (excluded.has(code)) both.push(code)
+  }
+  if (both.length) {
+    violations.push({
+      code: 'lock-exclude-conflict',
+      detail: `Locked and excluded (cannot be both): ${labelsForCodes(both, byCode)}`,
+      lockedCodes: both,
+    })
+  }
+
+  const unknown = lockedCodes.filter((code) => !byCode.has(code))
+  if (unknown.length) {
+    violations.push({
+      code: 'unknown-lock',
+      detail: `Locked codes not in the LP pool (funnel / m_fitness): ${unknown.join(', ')}. Cannot force x_p = 1.`,
+      lockedCodes: unknown,
+    })
+  }
+
+  const lockedRows = lockedCodes
+    .map((code) => byCode.get(code))
+    .filter((row): row is LpCandidate => row != null)
+
+  if (lockedRows.length > SQUAD_SIZE) {
+    violations.push({
+      code: 'size',
+      detail: `${lockedRows.length} locked players exceeds the 15-man squad`,
+      lockedCodes: lockedRows.map((row) => row.projection.code),
+    })
+  }
+
+  const spend = lockedRows.reduce((sum, row) => sum + row.projection.nowCostTenths, 0)
+  if (spend > BUDGET_TENTHS) {
+    violations.push({
+      code: 'budget',
+      detail: `Locked spend ${formatGbpFromTenths(spend)} exceeds ${formatGbpFromTenths(BUDGET_TENTHS)}: ${labelsForRows(lockedRows)}`,
+      lockedCodes: lockedRows.map((row) => row.projection.code),
+    })
+  }
+
+  const byClub = new Map<number, LpCandidate[]>()
+  for (const row of lockedRows) {
+    const teamId = row.projection.current.teamId
+    const list = byClub.get(teamId) ?? []
+    list.push(row)
+    byClub.set(teamId, list)
+  }
+  for (const rows of byClub.values()) {
+    if (rows.length > MAX_PER_CLUB) {
+      const name = rows[0]?.projection.teamShortName ?? 'club'
+      violations.push({
+        code: 'club',
+        detail: `${name} has ${rows.length} locked players (max ${MAX_PER_CLUB}): ${labelsForRows(rows)}`,
+        lockedCodes: rows.map((row) => row.projection.code),
+      })
+    }
+  }
+
+  const byPos: Record<PositionPool, LpCandidate[]> = { GK: [], DEF: [], MID: [], FWD: [] }
+  for (const row of lockedRows) byPos[positionPool(row.projection.position)].push(row)
+  for (const pool of Object.keys(SQUAD_POSITIONS) as PositionPool[]) {
+    if (byPos[pool].length > SQUAD_POSITIONS[pool]) {
+      violations.push({
+        code: 'position',
+        detail: `${byPos[pool].length} locked ${pool} exceeds the ${SQUAD_POSITIONS[pool]} quota: ${labelsForRows(byPos[pool])}`,
+        lockedCodes: byPos[pool].map((row) => row.projection.code),
+      })
+    }
+  }
+
+  const remaining = candidates.filter((row) => !excluded.has(row.projection.code))
+  if (remaining.length < SQUAD_SIZE) {
+    violations.push({
+      code: 'size',
+      detail: `After excludes, ${remaining.length} LP-pool players remain (need ${SQUAD_SIZE})`,
+      lockedCodes: lockedCodes,
+    })
+  }
+  const remainPos: Record<PositionPool, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 }
+  for (const row of remaining) remainPos[positionPool(row.projection.position)] += 1
+  for (const pool of Object.keys(SQUAD_POSITIONS) as PositionPool[]) {
+    if (remainPos[pool] < SQUAD_POSITIONS[pool]) {
+      violations.push({
+        code: 'position',
+        detail: `After excludes, ${remainPos[pool]} ${pool} remain (need ${SQUAD_POSITIONS[pool]})`,
+        lockedCodes: byPos[pool].map((row) => row.projection.code),
+      })
+    }
+  }
+
+  return violations
+}
+
+export function formatPinInfeasibility(violations: readonly PinViolation[]): string {
+  if (violations.length === 0) {
+    return 'Could not solve with the current locks/excludes. Locks were not dropped.'
+  }
+  const lines = violations.map((row) => row.detail)
+  return `Could not solve with the current locks/excludes. Locks were not dropped. ${lines.join(' ')}`
+}
+
+function labelsForCodes(codes: readonly number[], byCode: ReadonlyMap<number, LpCandidate>): string {
+  return codes
+    .map((code) => {
+      const row = byCode.get(code)
+      return row ? pinLabel(row.projection) : `code ${code}`
+    })
+    .join(', ')
+}
+
+function labelsForRows(rows: readonly LpCandidate[]): string {
+  return rows.map((row) => pinLabel(row.projection)).join(', ')
+}
+
+export function pinLabel(player: Gw0Projection): string {
+  return `${player.current.webName} (${player.teamShortName} ${positionPool(player.position)})`
+}
+
+function pinRows(candidates: readonly LpCandidate[], pins: SquadPins): string[] {
+  const byCode = new Map(candidates.map((row) => [row.projection.code, row]))
+  const lines: string[] = []
+  for (const code of uniquePinCodes(pins.lockedCodes)) {
+    const row = byCode.get(code)
+    if (!row) continue
+    lines.push(` lock_${code}: ${row.varName} = 1`)
+  }
+  for (const code of uniquePinCodes(pins.excludedCodes)) {
+    const row = byCode.get(code)
+    if (!row) continue
+    lines.push(` excl_${code}: ${row.varName} = 0`)
+  }
+  return lines
 }
 
 export function selectedFromColumns(

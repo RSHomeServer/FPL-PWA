@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { FplLivePlayer, PlayerPosition } from '../data/types'
 import type { Gw0Projection } from './gw0Project'
-import { solveBothObjectives } from './gw0Solver'
+import { suggestCaptain, suggestCaptainForSquad } from './gw0Captain'
+import { highsLoaderFromImport, solveBothObjectives, solveSquadObjective } from './gw0Solver'
 import {
   DEFAULT_FORMATION,
   FORMATIONS,
+  assembleSquad,
   buildSquadLp,
+  diagnosePins,
   fixtureCliff,
+  formatPinInfeasibility,
   isLegalSquad,
+  isSquadInfeasibleError,
   lpVarName,
   orderBench,
   overlapDiffs,
@@ -139,6 +144,84 @@ describe('HiGHS 15-man solve', () => {
     expect(lp).toContain('Binaries')
     expect(lp).toContain(lpVarName(501))
     expect(lp).not.toContain(lpVarName(999))
+  })
+
+  it('unwraps CJS / nested-default HiGHS imports until a loader function', () => {
+    const loader = () => Promise.resolve({} as never)
+    expect(highsLoaderFromImport(loader)).toBe(loader)
+    expect(highsLoaderFromImport({ default: loader })).toBe(loader)
+    expect(highsLoaderFromImport({ default: { default: loader } })).toBe(loader)
+    expect(() => highsLoaderFromImport({ default: { notALoader: true } })).toThrow(/loader function/)
+  })
+})
+
+describe('lock / exclude pins', () => {
+  it('writes lock x_p = 1 and exclude x_p = 0 into the LP text', () => {
+    const lp = buildSquadLp(tinyPool(), 'shortTerm', { lockedCodes: [501], excludedCodes: [502] })
+    expect(lp).toContain(`lock_501: ${lpVarName(501)} = 1`)
+    expect(lp).toContain(`excl_502: ${lpVarName(502)} = 0`)
+  })
+
+  it('lock forces inclusion in the short-term 15', async () => {
+    const squad = await solveSquadObjective(tinyPool(), 'shortTerm', DEFAULT_FORMATION, {
+      lockedCodes: [502],
+    })
+    expect(codes(squad.players)).toContain(502)
+    expect(isLegalSquad(squad.players)).toBe(true)
+  }, 30_000)
+
+  it('exclude forces omission from the short-term 15', async () => {
+    const squad = await solveSquadObjective(tinyPool(), 'shortTerm', DEFAULT_FORMATION, {
+      excludedCodes: [501],
+    })
+    expect(codes(squad.players)).not.toContain(501)
+    expect(isLegalSquad(squad.players)).toBe(true)
+  }, 30_000)
+
+  it('4 locked from one club is infeasible with a readable error and does not drop locks', async () => {
+    const pins = { lockedCodes: [31, 32, 33, 34] }
+    const diagnosed = diagnosePins(tinyPool(), pins)
+    expect(diagnosed.some((row) => row.code === 'club')).toBe(true)
+    expect(formatPinInfeasibility(diagnosed)).toMatch(/T1 has 4 locked players \(max 3\)/)
+    expect(formatPinInfeasibility(diagnosed)).toMatch(/P31|P32|P33|P34/)
+    expect(formatPinInfeasibility(diagnosed)).toMatch(/Locks were not dropped/)
+
+    try {
+      await solveSquadObjective(tinyPool(), 'shortTerm', DEFAULT_FORMATION, pins)
+      throw new Error('expected infeasible solve')
+    } catch (cause) {
+      expect(isSquadInfeasibleError(cause)).toBe(true)
+      if (!isSquadInfeasibleError(cause)) return
+      expect(cause.violations.some((row) => row.code === 'club')).toBe(true)
+      expect(cause.message).toMatch(/max 3/)
+      expect(cause.message).not.toMatch(/dropped the lock/i)
+    }
+  }, 30_000)
+})
+
+describe('captain suggestion', () => {
+  it('captain is max E GW1 in the XI and vice is a different XI player', () => {
+    const ordered = assembleSquad(legalFifteen(), 'shortTerm', '3-4-3')
+    const suggestion = suggestCaptainForSquad(ordered)
+    const xiMax = Math.max(...ordered.xi.map((row) => row.ePtsGw1))
+    expect(suggestion.captain.ePtsGw1).toBe(xiMax)
+    expect(ordered.xi.some((row) => row.code === suggestion.captain.code)).toBe(true)
+    expect(suggestion.vice.code).not.toBe(suggestion.captain.code)
+    expect(ordered.xi.some((row) => row.code === suggestion.vice.code)).toBe(true)
+    expect(suggestion.captainDoubledGw1).toBeCloseTo(2 * suggestion.captain.ePtsGw1)
+    expect(suggestion.squadGw1WithCaptain).toBeCloseTo(
+      ordered.players.reduce((sum, row) => sum + row.ePtsGw1, 0) + suggestion.captain.ePtsGw1,
+    )
+  })
+
+  it('notes a toss-up when the top two XI EPs are within 0.2', () => {
+    const captain = player({ code: 1, position: 'MID', ePtsGw1: 5.0 })
+    const vice = player({ code: 2, position: 'MID', ePtsGw1: 4.85 })
+    const suggestion = suggestCaptain([captain, vice], [captain, vice])
+    expect(suggestion.captain.code).toBe(1)
+    expect(suggestion.vice.code).toBe(2)
+    expect(suggestion.tossUp).toBe(true)
+    expect(suggestion.tossUpDetail).toMatch(/0\.2/)
   })
 })
 
