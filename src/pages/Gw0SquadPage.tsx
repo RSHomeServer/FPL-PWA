@@ -129,7 +129,17 @@ async function loadGw0Pool(force: boolean): Promise<{
   }
 }
 
+type Gw0PageMode = 'data' | 'visual'
+
 export function Gw0SquadPage() {
+  return <Gw0Page mode="data" />
+}
+
+export function Gw0VisualPage() {
+  return <Gw0Page mode="visual" />
+}
+
+function Gw0Page({ mode }: { mode: Gw0PageMode }) {
   const [formation, setFormation] = useState<FormationId>(DEFAULT_FORMATION)
   const [pins, setPins] = useState<Gw0SquadPinsRecord>(emptyGw0Pins())
   const [state, setState] = useState<PageState>({
@@ -270,9 +280,29 @@ export function Gw0SquadPage() {
     <ExplorerScreen
       hideSeasonBar
       kicker="GW0 squads"
-      title="Starting 15 candidates"
-      question="Which 15-player 2026/27 squads are reasonable before the GW1 deadline, and why?"
+      title={mode === 'visual' ? 'GW0 visuals and decisions' : 'GW0 calculations and tables'}
+      question={
+        mode === 'visual'
+          ? 'Interactive squad view, pool comparison, and decision charts.'
+          : 'Solver details, assumptions, lock/exclude controls, and audit tables.'
+      }
     >
+      <div className="fpl-explorer__toolbar">
+        <Link
+          className={`fpl-gw0-route-link${mode === 'visual' ? ' fpl-gw0-route-link--active' : ''}`}
+          to="/gw0"
+          viewTransition
+        >
+          Visuals
+        </Link>
+        <Link
+          className={`fpl-gw0-route-link${mode === 'data' ? ' fpl-gw0-route-link--active' : ''}`}
+          to="/gw0-data"
+          viewTransition
+        >
+          Data & calc
+        </Link>
+      </div>
       <details className="fpl-gw0-notes">
         <summary>Limitations, RMSE, and how the optimiser scores</summary>
         <p className="fpl-gw0-callout">
@@ -305,20 +335,6 @@ export function Gw0SquadPage() {
             ))}
           </Select>
         </Label>
-        <Button
-          variant="primary"
-          onClick={() => {
-            void runSolve({
-              nextFormation: formation,
-              nextPins: pins,
-              force: true,
-              previous: ready,
-            })
-          }}
-          disabled={solving}
-        >
-          Recompute
-        </Button>
         <p className="fpl-explorer__meta">
           <Link to="/gw0-flags">Edit minutes evidence</Link>
           {' — minutes flags change '}
@@ -344,6 +360,7 @@ export function Gw0SquadPage() {
       {ready ? (
         <Stack gap="lg">
           <ReadyView
+            mode={mode}
             shortTerm={ready.shortTerm}
             longTerm={ready.longTerm}
             overlap={ready.overlap}
@@ -353,14 +370,24 @@ export function Gw0SquadPage() {
             solvedAt={ready.solvedAt}
             pins={pins}
           />
-          <PinPanel
-            pins={pins}
-            lpPlayers={ready.lpPlayers}
-            disabled={solving}
-            onChange={(next) => {
-              void commitPins(next)
-            }}
-          />
+          {mode === 'data' ? (
+            <PinPanel
+              pins={pins}
+              lpPlayers={ready.lpPlayers}
+              disabled={solving}
+              onRecompute={() => {
+                void runSolve({
+                  nextFormation: formation,
+                  nextPins: pins,
+                  force: true,
+                  previous: ready,
+                })
+              }}
+              onChange={(next) => {
+                void commitPins(next)
+              }}
+            />
+          ) : null}
         </Stack>
       ) : null}
     </ExplorerScreen>
@@ -430,11 +457,13 @@ function PinPanel({
   pins,
   lpPlayers,
   disabled,
+  onRecompute,
   onChange,
 }: {
   pins: Gw0SquadPinsRecord
   lpPlayers: Gw0Projection[]
   disabled: boolean
+  onRecompute: () => void
   onChange: (next: Gw0SquadPinsRecord) => void
 }) {
   const [query, setQuery] = useState('')
@@ -458,6 +487,9 @@ function PinPanel({
         name, club, or position. {HINT.pin}
       </p>
       <div className="fpl-explorer__toolbar">
+        <Button variant="primary" disabled={disabled} onClick={onRecompute}>
+          Recompute
+        </Button>
         <Label className="fpl-explorer__field">
           Apply lock/exclude to
           <Select
@@ -626,6 +658,7 @@ function PinPanel({
 }
 
 function ReadyView({
+  mode,
   shortTerm,
   longTerm,
   overlap,
@@ -635,6 +668,7 @@ function ReadyView({
   solvedAt,
   pins,
 }: {
+  mode: Gw0PageMode
   shortTerm: OrderedSquad
   longTerm: OrderedSquad
   overlap: SquadOverlap
@@ -669,49 +703,74 @@ function ReadyView({
 
   const selectedCodesSet = selectedCodes
 
+  if (mode === 'visual') {
+    return (
+      <Stack gap="lg">
+        <div className="fpl-explorer__toolbar">
+          <Label className="fpl-explorer__field">
+            Show 15
+            <Select value={view15} onChange={(event) => setView15(event.target.value as 'shortTerm' | 'longTerm')}>
+              <option value="shortTerm">Short-term 15</option>
+              <option value="longTerm">Long-term 15</option>
+            </Select>
+          </Label>
+          <p className="fpl-explorer__meta">
+            LP pool {lpPlayers.length} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)}{' '}
+            vs long-term {fmt(overlap.longGw1)}.
+          </p>
+        </div>
+
+        <div className="fpl-gw0-pitches">
+          <SquadPanel
+            title={view15 === 'shortTerm' ? 'Short-term 15' : 'Long-term 15'}
+            blurb={view15 === 'shortTerm' ? 'Max expected GW1 points.' : 'Max equal-weight expected GW1–GW6 points.'}
+            squad={selectedSquad}
+            captain={selectedCaptain}
+            shorts={shorts}
+          />
+        </div>
+
+        <PoolPlayersTable
+          players={lpPlayers}
+          selectedCodes={selectedCodesSet}
+          captainCode={selectedCaptain.captain.code}
+          viceCode={selectedCaptain.vice.code}
+        />
+
+        <Gw0PoolCharts
+          pool={lpPlayers}
+          metricDefault="ePtsGw1"
+          selectedCodes={selectedCodesSet}
+          otherCodes={otherCodes}
+          selectedLabel={selectedLabel}
+          otherLabel={otherLabel}
+        />
+
+        <Gw0MetricsExplainer />
+      </Stack>
+    )
+  }
+
   return (
     <Stack gap="lg">
-      <div className="fpl-explorer__toolbar">
-        <Label className="fpl-explorer__field">
-          Show 15
-          <Select value={view15} onChange={(event) => setView15(event.target.value as 'shortTerm' | 'longTerm')}>
-            <option value="shortTerm">Short-term 15</option>
-            <option value="longTerm">Long-term 15</option>
-          </Select>
-        </Label>
-        <p className="fpl-explorer__meta">
-          LP pool {lpPlayers.length} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs long-term{' '}
-          {fmt(overlap.longGw1)}.
-        </p>
-      </div>
-
       <div className="fpl-gw0-pitches">
         <SquadPanel
-          title={view15 === 'shortTerm' ? 'Short-term 15' : 'Long-term 15'}
-          blurb={view15 === 'shortTerm' ? 'Max expected GW1 points.' : 'Max equal-weight expected GW1–GW6 points.'}
-          squad={selectedSquad}
-          captain={selectedCaptain}
+          title="Short-term 15"
+          blurb="Max expected GW1 points."
+          squad={shortTerm}
+          captain={shortCaptain}
           shorts={shorts}
+          showPitch={false}
+        />
+        <SquadPanel
+          title="Long-term 15"
+          blurb="Max equal-weight expected GW1–GW6 points."
+          squad={longTerm}
+          captain={longCaptain}
+          shorts={shorts}
+          showPitch={false}
         />
       </div>
-
-      <PoolPlayersTable
-        players={lpPlayers}
-        selectedCodes={selectedCodesSet}
-        captainCode={selectedCaptain.captain.code}
-        viceCode={selectedCaptain.vice.code}
-      />
-
-      <Gw0PoolCharts
-        pool={lpPlayers}
-        metricDefault="ePtsGw1"
-        selectedCodes={selectedCodesSet}
-        otherCodes={otherCodes}
-        selectedLabel={selectedLabel}
-        otherLabel={otherLabel}
-      />
-
-      <Gw0MetricsExplainer />
       <p className="fpl-explorer__meta">
         LP pool {lpPool} · overlap {overlap.shared.length}/15 · short-term ΣGW1 {fmt(overlap.shortGw1)} vs
         long-term {fmt(overlap.longGw1)} · short-term ΣGW1–6 {fmt(overlap.shortGw16)} vs long-term{' '}
@@ -1021,12 +1080,14 @@ function SquadPanel({
   squad,
   captain,
   shorts,
+  showPitch = true,
 }: {
   title: string
   blurb: string
   squad: OrderedSquad
   captain: CaptainSuggestion
   shorts: Map<number, string>
+  showPitch?: boolean
 }) {
   const d = squad.diagnostics
   const clubs = d.clubs
@@ -1047,12 +1108,14 @@ function SquadPanel({
     <section className="fpl-gw0-squad">
       <h2 className="fpl-explorer__title">{title}</h2>
       <p className="fpl-explorer__meta">{blurb}</p>
-      <FplPitch
-        formation={squad.formation}
-        players={xi}
-        bench={bench}
-        label={`${title} · ${squad.formation}`}
-      />
+      {showPitch ? (
+        <FplPitch
+          formation={squad.formation}
+          players={xi}
+          bench={bench}
+          label={`${title} · ${squad.formation}`}
+        />
+      ) : null}
       <ul className="fpl-gw0-stats">
         <li>Remaining {formatGbpFromTenths(d.remainingTenths)} of £100.0m</li>
         <li>

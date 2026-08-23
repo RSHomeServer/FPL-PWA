@@ -9,6 +9,7 @@ import { PlayerDetailPage } from './pages/PlayerDetailPage'
 import { PerfectTeamPage } from './pages/PerfectTeamPage'
 import { PlayersPage } from './pages/PlayersPage'
 import { TeamsPage } from './pages/TeamsPage'
+import { TeamSettingsPage } from './pages/TeamSettingsPage'
 
 /** FPL decision-support shell — routes mounted by SoloSiteApp. */
 export const fplSite = defineSite({
@@ -24,6 +25,7 @@ export const fplSite = defineSite({
     { path: '/compare', component: ComparePage },
     { path: '/fixtures', component: FixturesPage },
     { path: '/teams', component: TeamsPage },
+    { path: '/team/settings', component: TeamSettingsPage },
     { path: '/gw0', component: Gw0VisualPage },
     { path: '/gw0-data', component: Gw0SquadPage },
     { path: '/gw0-flags', component: FlagsReviewPage },

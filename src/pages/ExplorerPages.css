@@ -981,3 +981,46 @@
 .fpl-explorer a {
   color: var(--fpl-lime);
 }
+
+.fpl-team-settings__summary {
+  display: grid;
+  gap: var(--space-sm, 0.75rem);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin: 0;
+}
+
+.fpl-team-settings__summary > div {
+  padding: var(--space-sm, 0.75rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--fpl-pitch) 55%, transparent);
+}
+
+.fpl-team-settings__summary dt {
+  margin: 0;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-muted);
+}
+
+.fpl-team-settings__summary dd {
+  margin: 0.25rem 0 0;
+  font-size: var(--font-size-lg, 1.125rem);
+  font-weight: 600;
+}
+
+.fpl-team-settings__error {
+  margin: 0;
+  color: #ffb4b4;
+}
+
+.fpl-team-settings__form .fpl-explorer__field {
+  max-width: 16rem;
+}
+
+.fpl-team-settings__form .fpl-explorer__field :is(input) {
+  background-color: var(--fpl-ink);
+  border-color: var(--color-border);
+  box-shadow: none;
+  color: var(--color-foreground);
+  color-scheme: dark;
+}
