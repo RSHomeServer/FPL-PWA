@@ -1,0 +1,892 @@
+{
+  "probedAt": "2026-08-23T20:12:43.284Z",
+  "currentGw": 1,
+  "sampleElementId": 1,
+  "sampleCode": 154561,
+  "entryId": 1,
+  "bootstrapTopKeys": [
+    "chips",
+    "events",
+    "game_settings",
+    "game_config",
+    "phases",
+    "teams",
+    "total_players",
+    "element_stats",
+    "element_types",
+    "elements"
+  ],
+  "eventFlags": [
+    {
+      "id": 1,
+      "name": "Gameweek 1",
+      "is_current": true,
+      "is_next": false,
+      "finished": false,
+      "deadline_time": "2026-08-21T17:30:00Z"
+    },
+    {
+      "id": 2,
+      "name": "Gameweek 2",
+      "is_current": false,
+      "is_next": true,
+      "finished": false,
+      "deadline_time": "2026-08-28T17:30:00Z"
+    },
+    {
+      "id": 3,
+      "name": "Gameweek 3",
+      "is_current": false,
+      "is_next": false,
+      "finished": false,
+      "deadline_time": "2026-09-04T17:30:00Z"
+    }
+  ],
+  "elementSample": {
+    "id": 1,
+    "code": 154561,
+    "web_name": "Raya",
+    "team": 1,
+    "element_type": 1,
+    "now_cost": 60,
+    "status": "a",
+    "ep_next": "4.0",
+    "selected_by_percent": "37.8"
+  },
+  "entrySample": {
+    "id": 1,
+    "name": "Solio Moose",
+    "started_event": 1,
+    "current_event": 1,
+    "last_deadline_bank": 0,
+    "last_deadline_value": 1000
+  },
+  "gameSettings": {
+    "squad_squadsize": 15,
+    "squad_team_limit": 3,
+    "squad_total_spend": 1000,
+    "transfers_sell_on_fee": 0.5,
+    "transfers_cap": 20,
+    "max_extra_free_transfers": 4,
+    "stats_form_days": 30
+  },
+  "results": [
+    {
+      "path": "/api/bootstrap-static/",
+      "url": "https://fantasy.premierleague.com/api/bootstrap-static/",
+      "ok": true,
+      "status": 200,
+      "ms": 127,
+      "textLen": 1611219,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "chips",
+          "events",
+          "game_settings",
+          "game_config",
+          "phases",
+          "teams",
+          "total_players",
+          "element_stats",
+          "element_types",
+          "elements"
+        ],
+        "fields": {
+          "chips": {
+            "type": "array",
+            "length": 8,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "id",
+                "name",
+                "number",
+                "start_event",
+                "stop_event",
+                "chip_type",
+                "overrides"
+              ],
+              "fields": {
+                "id": "number",
+                "name": "string",
+                "number": "number",
+                "start_event": "number",
+                "stop_event": "number",
+                "chip_type": "string"
+              }
+            }
+          },
+          "events": {
+            "type": "array",
+            "length": 38,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "id",
+                "name",
+                "deadline_time",
+                "release_time",
+                "average_entry_score",
+                "finished",
+                "data_checked",
+                "highest_scoring_entry"
+              ],
+              "keysTruncated": 29,
+              "fields": {
+                "id": "number",
+                "name": "string",
+                "deadline_time": "string",
+                "release_time": null,
+                "average_entry_score": "number",
+                "finished": "boolean"
+              }
+            }
+          },
+          "game_settings": {
+            "type": "object",
+            "keys": [
+              "league_join_private_max",
+              "league_join_public_max",
+              "league_max_size_public_classic",
+              "league_max_size_public_h2h",
+              "league_max_size_private_h2h",
+              "league_max_ko_rounds_private_h2h"
+            ],
+            "keysTruncated": 35,
+            "fields": {
+              "league_join_private_max": "number",
+              "league_join_public_max": "number",
+              "league_max_size_public_classic": "number",
+              "league_max_size_public_h2h": "number",
+              "league_max_size_private_h2h": "number",
+              "league_max_ko_rounds_private_h2h": "number"
+            }
+          },
+          "game_config": {
+            "type": "object",
+            "keys": [
+              "settings",
+              "rules",
+              "scoring"
+            ],
+            "fields": {
+              "settings": {
+                "type": "object",
+                "keys": [
+                  "entry_per_event",
+                  "timezone",
+                  "static_content_url",
+                  "price_change_deadlines"
+                ],
+                "fields": {
+                  "entry_per_event": "boolean",
+                  "timezone": "string",
+                  "static_content_url": "string",
+                  "price_change_deadlines": {
+                    "type": "array",
+                    "length": 3,
+                    "itemShape": "string"
+                  }
+                }
+              },
+              "rules": {
+                "type": "object",
+                "keys": [
+                  "league_join_private_max",
+                  "league_join_public_max",
+                  "league_max_size_public_classic",
+                  "league_max_size_public_h2h",
+                  "league_max_size_private_h2h",
+                  "league_max_ko_rounds_private_h2h"
+                ],
+                "keysTruncated": 34,
+                "fields": {
+                  "league_join_private_max": "number",
+                  "league_join_public_max": "number",
+                  "league_max_size_public_classic": "number",
+                  "league_max_size_public_h2h": "number",
+                  "league_max_size_private_h2h": "number",
+                  "league_max_ko_rounds_private_h2h": "number"
+                }
+              },
+              "scoring": {
+                "type": "object",
+                "keys": [
+                  "long_play",
+                  "short_play",
+                  "goals_conceded",
+                  "saves",
+                  "goals_scored",
+                  "assists"
+                ],
+                "keysTruncated": 35,
+                "fields": {
+                  "long_play": "number",
+                  "short_play": "number",
+                  "goals_conceded": "object…",
+                  "saves": "number",
+                  "goals_scored": "object…",
+                  "assists": "number"
+                }
+              }
+            }
+          },
+          "phases": {
+            "type": "array",
+            "length": 11,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "id",
+                "name",
+                "start_event",
+                "stop_event",
+                "highest_score"
+              ],
+              "fields": {
+                "id": "number",
+                "name": "string",
+                "start_event": "number",
+                "stop_event": "number",
+                "highest_score": "number"
+              }
+            }
+          },
+          "teams": {
+            "type": "array",
+            "length": 20,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "code",
+                "draw",
+                "form",
+                "id",
+                "loss",
+                "name",
+                "played",
+                "points"
+              ],
+              "keysTruncated": 22,
+              "fields": {
+                "code": "number",
+                "draw": "number",
+                "form": null,
+                "id": "number",
+                "loss": "number",
+                "name": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/fixtures/",
+      "url": "https://fantasy.premierleague.com/api/fixtures/",
+      "ok": true,
+      "status": 200,
+      "ms": 8,
+      "textLen": 138627,
+      "shape": {
+        "type": "array",
+        "length": 380,
+        "itemShape": {
+          "type": "object",
+          "keys": [
+            "code",
+            "event",
+            "finished",
+            "finished_provisional",
+            "id",
+            "kickoff_time",
+            "minutes",
+            "provisional_start_time"
+          ],
+          "keysTruncated": 17,
+          "fields": {
+            "code": "number",
+            "event": "number",
+            "finished": "boolean",
+            "finished_provisional": "boolean",
+            "id": "number",
+            "kickoff_time": "string"
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/event-status/",
+      "url": "https://fantasy.premierleague.com/api/event-status/",
+      "ok": true,
+      "status": 200,
+      "ms": 5,
+      "textLen": 292,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "status",
+          "leagues"
+        ],
+        "fields": {
+          "status": {
+            "type": "array",
+            "length": 4,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "bonus_added",
+                "date",
+                "event",
+                "points"
+              ],
+              "fields": {
+                "bonus_added": "boolean",
+                "date": "string",
+                "event": "number",
+                "points": "string"
+              }
+            }
+          },
+          "leagues": "string"
+        }
+      }
+    },
+    {
+      "path": "/api/event/1/live/",
+      "url": "https://fantasy.premierleague.com/api/event/1/live/",
+      "ok": true,
+      "status": 200,
+      "ms": 8,
+      "textLen": 432391,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "elements"
+        ],
+        "fields": {
+          "elements": {
+            "type": "array",
+            "length": 609,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "id",
+                "stats",
+                "explain",
+                "modified"
+              ],
+              "fields": {
+                "id": "number",
+                "stats": "object…",
+                "explain": {
+                  "type": "array",
+                  "length": 1,
+                  "itemShape": "object…"
+                },
+                "modified": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/element-summary/1/",
+      "url": "https://fantasy.premierleague.com/api/element-summary/1/",
+      "ok": true,
+      "status": 200,
+      "ms": 5,
+      "textLen": 13167,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "fixtures",
+          "history",
+          "history_past"
+        ],
+        "fields": {
+          "fixtures": {
+            "type": "array",
+            "length": 37,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "id",
+                "code",
+                "team_h",
+                "team_h_score",
+                "team_a",
+                "team_a_score",
+                "event",
+                "finished"
+              ],
+              "keysTruncated": 14,
+              "fields": {
+                "id": "number",
+                "code": "number",
+                "team_h": "number",
+                "team_h_score": null,
+                "team_a": "number",
+                "team_a_score": null
+              }
+            }
+          },
+          "history": {
+            "type": "array",
+            "length": 1,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "element",
+                "fixture",
+                "opponent_team",
+                "total_points",
+                "was_home",
+                "kickoff_time",
+                "team_h_score",
+                "team_a_score"
+              ],
+              "keysTruncated": 41,
+              "fields": {
+                "element": "number",
+                "fixture": "number",
+                "opponent_team": "number",
+                "total_points": "number",
+                "was_home": "boolean",
+                "kickoff_time": "string"
+              }
+            }
+          },
+          "history_past": {
+            "type": "array",
+            "length": 5,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "season_name",
+                "element_code",
+                "start_cost",
+                "end_cost",
+                "total_points",
+                "minutes",
+                "goals_scored",
+                "assists"
+              ],
+              "keysTruncated": 31,
+              "fields": {
+                "season_name": "string",
+                "element_code": "number",
+                "start_cost": "number",
+                "end_cost": "number",
+                "total_points": "number",
+                "minutes": "number"
+              }
+            }
+          }
+        }
+      },
+      "sampleElementId": 1
+    },
+    {
+      "path": "/api/dream-team/1/",
+      "url": "https://fantasy.premierleague.com/api/dream-team/1/",
+      "ok": true,
+      "status": 200,
+      "ms": 6,
+      "textLen": 496,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "top_player",
+          "team"
+        ],
+        "fields": {
+          "top_player": {
+            "type": "object",
+            "keys": [
+              "id",
+              "points"
+            ],
+            "fields": {
+              "id": "number",
+              "points": "number"
+            }
+          },
+          "team": {
+            "type": "array",
+            "length": 11,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "element",
+                "points",
+                "position"
+              ],
+              "fields": {
+                "element": "number",
+                "points": "number",
+                "position": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/api/entry/1/",
+      "url": "https://fantasy.premierleague.com/api/entry/1/",
+      "ok": true,
+      "status": 200,
+      "ms": 6,
+      "textLen": 17394,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "id",
+          "joined_time",
+          "started_event",
+          "favourite_team",
+          "player_first_name",
+          "player_last_name",
+          "player_region_id",
+          "player_region_name",
+          "player_region_iso_code_short",
+          "player_region_iso_code_long",
+          "years_active",
+          "summary_overall_points"
+        ],
+        "keysTruncated": 25,
+        "fields": {
+          "id": "number",
+          "joined_time": "string",
+          "started_event": "number",
+          "favourite_team": "number",
+          "player_first_name": "string",
+          "player_last_name": "string"
+        }
+      },
+      "sample": {
+        "id": 1,
+        "name": "Solio Moose",
+        "player_first_name": "Chris",
+        "player_last_name": "Musson",
+        "summary_overall_points": 30,
+        "summary_overall_rank": 6332282,
+        "current_event": 1,
+        "last_deadline_bank": 0,
+        "last_deadline_value": 1000
+      }
+    },
+    {
+      "label": "history",
+      "path": "/api/entry/1/history/",
+      "url": "https://fantasy.premierleague.com/api/entry/1/history/",
+      "ok": true,
+      "status": 200,
+      "ms": 4,
+      "textLen": 1095,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "current",
+          "past",
+          "chips"
+        ],
+        "fields": {
+          "current": {
+            "type": "array",
+            "length": 1,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "event",
+                "points",
+                "total_points",
+                "rank",
+                "rank_sort",
+                "overall_rank",
+                "percentile_rank",
+                "overall_rank_percentage"
+              ],
+              "keysTruncated": 13,
+              "fields": {
+                "event": "number",
+                "points": "number",
+                "total_points": "number",
+                "rank": "number",
+                "rank_sort": "number",
+                "overall_rank": "number"
+              }
+            }
+          },
+          "past": {
+            "type": "array",
+            "length": 10,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "season_name",
+                "total_points",
+                "rank",
+                "rank_percentage"
+              ],
+              "fields": {
+                "season_name": "string",
+                "total_points": "number",
+                "rank": "number",
+                "rank_percentage": "string"
+              }
+            }
+          },
+          "chips": {
+            "type": "array",
+            "length": 0,
+            "itemShape": null
+          }
+        }
+      }
+    },
+    {
+      "label": "history-current-sample",
+      "sample": {
+        "event": 1,
+        "points": 30,
+        "total_points": 30,
+        "bank": 0,
+        "value": 1000,
+        "event_transfers": 0,
+        "event_transfers_cost": 0,
+        "rank": 6322276,
+        "overall_rank": 6322267
+      },
+      "chips": []
+    },
+    {
+      "label": "transfers",
+      "path": "/api/entry/1/transfers/",
+      "url": "https://fantasy.premierleague.com/api/entry/1/transfers/",
+      "ok": true,
+      "status": 200,
+      "ms": 6,
+      "textLen": 2,
+      "shape": {
+        "type": "array",
+        "length": 0,
+        "itemShape": null
+      }
+    },
+    {
+      "label": "transfers-sample",
+      "sample": null
+    },
+    {
+      "label": "picks-gw1",
+      "path": "/api/entry/1/event/1/picks/",
+      "url": "https://fantasy.premierleague.com/api/entry/1/event/1/picks/",
+      "ok": true,
+      "status": 200,
+      "ms": 6,
+      "textLen": 1865,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "active_chip",
+          "automatic_subs",
+          "entry_history",
+          "picks"
+        ],
+        "fields": {
+          "active_chip": null,
+          "automatic_subs": {
+            "type": "array",
+            "length": 0,
+            "itemShape": null
+          },
+          "entry_history": {
+            "type": "object",
+            "keys": [
+              "event",
+              "points",
+              "total_points",
+              "rank",
+              "rank_sort",
+              "overall_rank"
+            ],
+            "keysTruncated": 13,
+            "fields": {
+              "event": "number",
+              "points": "number",
+              "total_points": "number",
+              "rank": "number",
+              "rank_sort": "number",
+              "overall_rank": "number"
+            }
+          },
+          "picks": {
+            "type": "array",
+            "length": 15,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "element",
+                "position",
+                "multiplier",
+                "is_captain",
+                "is_vice_captain",
+                "element_type"
+              ],
+              "fields": {
+                "element": "number",
+                "position": "number",
+                "multiplier": "number",
+                "is_captain": "boolean",
+                "is_vice_captain": "boolean",
+                "element_type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "picks-gw1-sample-pick",
+      "sample": {
+        "element": 1,
+        "position": 1,
+        "multiplier": 1,
+        "is_captain": false,
+        "is_vice_captain": false
+      },
+      "automaticSubs": [],
+      "activeChip": null,
+      "entryHistory": {
+        "event": 1,
+        "points": 30,
+        "bank": 0,
+        "value": 1000,
+        "event_transfers": 0,
+        "event_transfers_cost": 0,
+        "total_points": 30
+      }
+    },
+    {
+      "label": "picks-gw1",
+      "path": "/api/entry/1/event/1/picks/",
+      "url": "https://fantasy.premierleague.com/api/entry/1/event/1/picks/",
+      "ok": true,
+      "status": 200,
+      "ms": 4,
+      "textLen": 1865,
+      "shape": {
+        "type": "object",
+        "keys": [
+          "active_chip",
+          "automatic_subs",
+          "entry_history",
+          "picks"
+        ],
+        "fields": {
+          "active_chip": null,
+          "automatic_subs": {
+            "type": "array",
+            "length": 0,
+            "itemShape": null
+          },
+          "entry_history": {
+            "type": "object",
+            "keys": [
+              "event",
+              "points",
+              "total_points",
+              "rank",
+              "rank_sort",
+              "overall_rank"
+            ],
+            "keysTruncated": 13,
+            "fields": {
+              "event": "number",
+              "points": "number",
+              "total_points": "number",
+              "rank": "number",
+              "rank_sort": "number",
+              "overall_rank": "number"
+            }
+          },
+          "picks": {
+            "type": "array",
+            "length": 15,
+            "itemShape": {
+              "type": "object",
+              "keys": [
+                "element",
+                "position",
+                "multiplier",
+                "is_captain",
+                "is_vice_captain",
+                "element_type"
+              ],
+              "fields": {
+                "element": "number",
+                "position": "number",
+                "multiplier": "number",
+                "is_captain": "boolean",
+                "is_vice_captain": "boolean",
+                "element_type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "label": "picks-gw1-sample-pick",
+      "sample": {
+        "element": 1,
+        "position": 1,
+        "multiplier": 1,
+        "is_captain": false,
+        "is_vice_captain": false
+      },
+      "automaticSubs": [],
+      "activeChip": null,
+      "entryHistory": {
+        "event": 1,
+        "points": 30,
+        "bank": 0,
+        "value": 1000,
+        "event_transfers": 0,
+        "event_transfers_cost": 0,
+        "total_points": 30
+      }
+    },
+    {
+      "probe": "player-code-lookup",
+      "path": "/api/entry/by-player-code/154561/",
+      "status": 404,
+      "ok": false,
+      "textSample": "\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Not Found</title>\n</head>\n<body>\n  <h1>Not Found</h1><p>The requested "
+    },
+    {
+      "probe": "player-code-lookup",
+      "path": "/api/entry/by-code/154561/",
+      "status": 404,
+      "ok": false,
+      "textSample": "\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Not Found</title>\n</head>\n<body>\n  <h1>Not Found</h1><p>The requested "
+    },
+    {
+      "probe": "player-code-lookup",
+      "path": "/api/player/154561/",
+      "status": 404,
+      "ok": false,
+      "textSample": "\n<!doctype html>\n<html lang=\"en\">\n<head>\n  <title>Not Found</title>\n</head>\n<body>\n  <h1>Not Found</h1><p>The requested "
+    },
+    {
+      "probe": "player-code-lookup",
+      "path": "/api/entry/154561/",
+      "status": 200,
+      "ok": true
+    }
+  ]
+}
