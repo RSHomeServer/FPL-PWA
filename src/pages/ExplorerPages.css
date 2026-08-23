@@ -1012,3 +1012,15 @@
   margin: 0;
   color: #ffb4b4;
 }
+
+.fpl-team-settings__form .fpl-explorer__field {
+  max-width: 16rem;
+}
+
+.fpl-team-settings__form .fpl-explorer__field :is(input) {
+  background-color: var(--fpl-ink);
+  border-color: var(--color-border);
+  box-shadow: none;
+  color: var(--color-foreground);
+  color-scheme: dark;
+}

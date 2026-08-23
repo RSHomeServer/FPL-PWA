@@ -62,16 +62,19 @@ export function TeamSettingsPage() {
       hideSeasonBar
     >
       <Stack gap="md" className="fpl-team-settings">
-        <Stack gap="sm">
-          <Label htmlFor="fpl-entry-id">FPL entry ID</Label>
-          <TextField
-            id="fpl-entry-id"
-            inputMode="numeric"
-            value={entryIdInput}
-            onChange={(event) => setEntryIdInput(event.target.value)}
-            placeholder="e.g. 1"
-          />
-          <p className="fpl-explorer__question">
+        <Stack gap="sm" className="fpl-team-settings__form">
+          <Label className="fpl-explorer__field" htmlFor="fpl-entry-id">
+            FPL entry ID
+            <TextField
+              id="fpl-entry-id"
+              inputMode="numeric"
+              value={entryIdInput}
+              onChange={(event) => setEntryIdInput(event.target.value)}
+              placeholder="e.g. 8585919"
+              autoComplete="off"
+            />
+          </Label>
+          <p className="fpl-explorer__meta">
             Find this in your team URL: fantasy.premierleague.com/entry/<strong>1234567</strong>/event/…
           </p>
           <Button variant="primary" onClick={() => void loadTeam()} disabled={state.kind === 'loading'}>
