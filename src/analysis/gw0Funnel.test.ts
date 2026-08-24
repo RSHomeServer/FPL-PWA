@@ -232,6 +232,7 @@ function livePlayer(partial: Partial<FplLivePlayer> & Pick<FplLivePlayer, 'id' |
     chanceOfPlayingNextRound: null,
     epNext: 2.1,
     canSelect: true,
+    costChangeStart: 0,
     ...partial,
   }
 }

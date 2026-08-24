@@ -5,5 +5,6 @@ export function poundsFromTenths(tenths: number): number {
 }
 
 export function formatGbpFromTenths(tenths: number): string {
+  if (!Number.isFinite(tenths)) return '—'
   return `£${poundsFromTenths(tenths).toFixed(1)}m`
 }

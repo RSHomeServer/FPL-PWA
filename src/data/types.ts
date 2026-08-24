@@ -130,6 +130,11 @@ export type FplLivePlayer = FplPlayer & {
   chanceOfPlayingNextRound: number | null
   epNext: number | null
   canSelect: boolean
+  /**
+   * Bootstrap `cost_change_start` (tenths). Opening-cost proxy for sell-price
+   * reconstruction is `nowCostTenths - costChangeStart` (discovery §2.4).
+   */
+  costChangeStart: number
 }
 
 export type FplLiveEvent = {
@@ -375,4 +380,50 @@ export type LoadedUserState = {
   lastRefreshAt: number
   servingCached: boolean
   refreshFailed: boolean
+}
+
+/** How purchase price was reconstructed for sell-price (discovery §2.4). */
+export type SellPriceMethod = 'transfer-log' | 'opening-proxy' | 'conservative'
+
+/** Per-owned-player sell-price derivation (never written back to Dexie picks). */
+export type SellPriceDetail = {
+  elementId: number
+  code: number
+  purchasePriceTenths: number
+  sellPriceTenths: number
+  nowCostTenths: number
+  uncertain: boolean
+  method: SellPriceMethod
+}
+
+export type SellPriceByElement = Map<number, SellPriceDetail>
+
+/** Derived free-transfer / hit state for the current gameweek (discovery §7). */
+export type FreeTransferState = {
+  freeTransfers: number
+  eventTransfers: number
+  hits: number
+  hitCost: number
+  chip: string | null
+  notes: string[]
+}
+
+/**
+ * Working manager state for transfer analysis (discovery §2.2).
+ * Built in memory from Dexie + live prices — never mutates user stores.
+ */
+export type ManagerGameweekState = {
+  entryId: number
+  event: number
+  picks: SquadPick[]
+  bankTenths: number
+  squadValueTenths: number
+  eventTransfers: number
+  eventTransfersCost: number
+  activeChip: string | null
+  freeTransfers: number
+  sellPriceTenthsByCode: Map<number, number>
+  sellPrices: SellPriceByElement
+  freeTransferDetail: FreeTransferState
+  fetchedAt: number
 }
