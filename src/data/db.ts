@@ -14,6 +14,11 @@ import type {
   Gw0SquadPinsRecord,
   RoleEvidenceRecord,
   SeasonCacheMeta,
+  TransferScenarioRecord,
+  UserHistoryRecord,
+  UserPicksRecord,
+  UserProfileRecord,
+  UserTransfersRecord,
 } from './types'
 import type { PerfectDynamicCacheRecord, PerfectStaticCacheRecord } from './perfectTeamCache'
 
@@ -40,9 +45,22 @@ export type FplCacheDb = ReturnType<typeof createSongaraDb> & {
   gw0SquadPins: Table<Gw0SquadPinsRecord>
   perfectDynamic: Table<PerfectDynamicCacheRecord>
   perfectStatic: Table<PerfectStaticCacheRecord>
+  userProfile: Table<UserProfileRecord>
+  userPicks: Table<UserPicksRecord, [number, number]>
+  userHistory: Table<UserHistoryRecord>
+  userTransfers: Table<UserTransfersRecord>
+  transferScenarios: Table<TransferScenarioRecord>
 }
 
 let db: FplCacheDb | null = null
+
+/** Test helper: close and reset the singleton so each test gets a fresh schema. */
+export async function resetFplCacheDbForTests(): Promise<void> {
+  if (db) {
+    await db.delete()
+    db = null
+  }
+}
 
 export function getFplCacheDb(): FplCacheDb {
   if (db) return db
@@ -87,6 +105,16 @@ export function getFplCacheDb(): FplCacheDb {
         stores: {
           perfectDynamic: 'id, seasonId',
           perfectStatic: 'id, seasonId, round',
+        },
+      },
+      {
+        version: 6,
+        stores: {
+          userProfile: 'entryId',
+          userPicks: '[entryId+event], entryId, event',
+          userHistory: 'entryId',
+          userTransfers: 'entryId',
+          transferScenarios: 'id, entryId',
         },
       },
     ],
