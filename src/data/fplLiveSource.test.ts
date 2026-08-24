@@ -51,6 +51,7 @@ const bootstrap = {
       team_code: 3,
       element_type: 1,
       now_cost: 60,
+      cost_change_start: 0,
       total_points: 162,
       minutes: 3330,
       goals_scored: 0,
@@ -78,6 +79,7 @@ describe('official JSON mapping', () => {
     expect(raya?.code).toBe(154561)
     expect(raya?.position).toBe('GK')
     expect(raya?.nowCostTenths).toBe(60)
+    expect(raya?.costChangeStart).toBe(0)
     expect(raya?.teamCode).toBe(3)
     expect(raya?.status).toBe('a')
     expect(raya?.epNext).toBe(4)

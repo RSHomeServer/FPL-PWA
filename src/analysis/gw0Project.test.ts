@@ -345,6 +345,7 @@ function livePlayer(
     chanceOfPlayingNextRound: null,
     epNext: 2.1,
     canSelect: true,
+    costChangeStart: 0,
     ...partial,
   }
 }

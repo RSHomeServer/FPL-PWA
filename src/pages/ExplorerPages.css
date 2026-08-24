@@ -1040,3 +1040,59 @@
   color: var(--color-foreground);
   color-scheme: dark;
 }
+
+.fpl-team-settings__live {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.fpl-team-settings__live-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.fpl-team-settings__audit {
+  display: inline-block;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.fpl-team-settings__sell {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.fpl-team-settings__sell-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.fpl-team-settings__sell-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.fpl-team-settings__sell-table th,
+.fpl-team-settings__sell-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fpl-team-settings__sell-table th {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.fpl-team-settings__uncertain {
+  color: #f9a825;
+  font-size: 0.8rem;
+}

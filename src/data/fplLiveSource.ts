@@ -1,5 +1,5 @@
 import { CURRENT_SEASON_TTL_MS, isLiveFresh } from './cachePolicy'
-import { parseBoolField, parseOptionalFloat, parseOptionalInt } from './csv'
+import { parseBoolField, parseIntField, parseOptionalFloat, parseOptionalInt } from './csv'
 import { getFplCacheDb } from './db'
 import { parseFixtureRow, parsePlayerRow, parseTeamRow } from './parse'
 import type {
@@ -99,6 +99,7 @@ export function parseLivePlayer(seasonId: string, row: Record<string, string>): 
     chanceOfPlayingNextRound: parseOptionalInt(row.chance_of_playing_next_round),
     epNext: parseOptionalFloat(row.ep_next),
     canSelect: canSelectRaw == null || canSelectRaw === '' ? true : parseBoolField(canSelectRaw),
+    costChangeStart: parseIntField(row.cost_change_start),
   }
 }
 
