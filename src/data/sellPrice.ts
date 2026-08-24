@@ -27,10 +27,15 @@ export const TRANSFERS_SELL_ON_FEE = 0.5
  */
 export const TRANSFERS_CAP = 20
 
+export type LivePriceRow = Pick<FplLivePlayer, 'id' | 'code' | 'nowCostTenths'> & {
+  /** Optional for back-compat with Dexie rows written before LT-3. */
+  costChangeStart?: number | null
+}
+
 export type DeriveSellPricesArgs = {
   picks: readonly SquadPick[]
   transfers: readonly ManagerTransfer[]
-  players: readonly Pick<FplLivePlayer, 'id' | 'code' | 'nowCostTenths' | 'costChangeStart'>[]
+  players: readonly LivePriceRow[]
   /** Season history — used to detect incomplete transfer logs. */
   historyCurrent?: readonly ManagerHistoryGameweek[]
 }
@@ -52,11 +57,16 @@ export function computeSellPriceTenths(
   return nowCostTenths
 }
 
-/** Opening-cost proxy: `now_cost - cost_change_start`. */
+/**
+ * Opening-cost proxy: `now_cost - cost_change_start`.
+ * Missing `costChangeStart` (e.g. Dexie rows cached before LT-3) is treated as 0 —
+ * at GW1 that means purchase = listed `now_cost`, which matches FPL until prices move.
+ */
 export function openingCostProxyTenths(
-  player: Pick<FplLivePlayer, 'nowCostTenths' | 'costChangeStart'>,
+  player: Pick<FplLivePlayer, 'nowCostTenths'> & { costChangeStart?: number | null },
 ): number {
-  return player.nowCostTenths - player.costChangeStart
+  const change = Number.isFinite(player.costChangeStart) ? Number(player.costChangeStart) : 0
+  return player.nowCostTenths - change
 }
 
 function latestPurchaseFromTransfers(

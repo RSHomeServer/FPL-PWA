@@ -176,7 +176,8 @@ export async function loadOfficialLiveSnapshot(options?: {
   const existing = await cache.liveMeta.get('current')
   if (!options?.force && isLiveFresh(existing, now)) {
     const cached = await readPersistedLiveSnapshot(existing)
-    if (cached) return cached
+    // LT-3 needs cost_change_start; rows written before that field existed are unusable.
+    if (cached && livePlayersHaveCostChangeStart(cached.players)) return cached
   }
 
   try {
@@ -185,12 +186,29 @@ export async function loadOfficialLiveSnapshot(options?: {
     return snapshot
   } catch (error) {
     const stale = await readPersistedLiveSnapshot(existing)
-    if (stale) return stale
+    if (stale) {
+      return {
+        ...stale,
+        players: normalizeLivePlayersCostChange(stale.players),
+      }
+    }
     throw error
   }
 }
 
 export { CURRENT_SEASON_TTL_MS }
+
+function livePlayersHaveCostChangeStart(players: readonly FplLivePlayer[]): boolean {
+  if (!players.length) return false
+  return players.every((player) => Number.isFinite(player.costChangeStart))
+}
+
+function normalizeLivePlayersCostChange(players: FplLivePlayer[]): FplLivePlayer[] {
+  return players.map((player) => ({
+    ...player,
+    costChangeStart: Number.isFinite(player.costChangeStart) ? player.costChangeStart : 0,
+  }))
+}
 
 async function readPersistedLiveSnapshot(existing: LiveCacheMeta | undefined): Promise<FplLiveSnapshot | null> {
   if (!existing) return null

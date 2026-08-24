@@ -64,6 +64,21 @@ describe('deriveSellPrices', () => {
     { id: 3, code: 103, nowCostTenths: 60, costChangeStart: -2 }, // opening 62
   ]
 
+  it('treats missing costChangeStart as 0 (stale Dexie / GW1 listed price)', () => {
+    expect(openingCostProxyTenths({ nowCostTenths: 80, costChangeStart: undefined })).toBe(80)
+    const map = deriveSellPrices({
+      picks: [pick(9, 109)],
+      transfers: [],
+      players: [{ id: 9, code: 109, nowCostTenths: 80 }],
+    })
+    expect(map.get(9)).toMatchObject({
+      purchasePriceTenths: 80,
+      sellPriceTenths: 80,
+      method: 'opening-proxy',
+      uncertain: false,
+    })
+  })
+
   it('uses opening-proxy for GW1 holds (now_cost - cost_change_start)', () => {
     expect(openingCostProxyTenths(players[0]!)).toBe(75)
     const map = deriveSellPrices({
