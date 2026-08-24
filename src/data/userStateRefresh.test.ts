@@ -50,6 +50,7 @@ const bootstrap = {
       team_code: 3,
       element_type: 3,
       now_cost: 80,
+      cost_change_start: 0,
       total_points: 0,
       minutes: 0,
       goals_scored: 0,

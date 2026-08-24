@@ -348,6 +348,7 @@ function player(partial: {
     chanceOfPlayingNextRound: null,
     epNext: 2,
     canSelect: true,
+    costChangeStart: 0,
   }
   const auditByGw = (partial.audit ?? [{ gw: 1, fdr: 2 as const }]).map((row) => ({
     gw: row.gw,

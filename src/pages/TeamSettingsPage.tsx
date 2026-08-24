@@ -1,8 +1,10 @@
 import { Button, Label, Spinner, Stack, TextField } from '@songara/pwa-base/ui'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getFplCacheDb } from '../data/db'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
+import { buildManagerGameweekStateFromSnapshot } from '../data/managerGameweekState'
 import { formatGbpFromTenths } from '../data/prices'
-import type { ManagerSnapshot } from '../data/types'
+import type { ManagerGameweekState, ManagerSnapshot } from '../data/types'
 import {
   loadCachedUserStateAfterFailure,
   loadUserState,
@@ -21,17 +23,37 @@ type ViewState =
       captainName: string | null
       lastRefreshAt: number
       servingCached: boolean
+      managerState: ManagerGameweekState | null
+      playerNames: Map<number, string>
     }
 
 function formatRefreshTime(ms: number): string {
   return new Date(ms).toLocaleString()
 }
 
-async function captainNameForSnapshot(snapshot: ManagerSnapshot): Promise<string | null> {
+async function enrichSnapshot(
+  snapshot: ManagerSnapshot,
+  lastRefreshAt: number,
+  servingCached: boolean,
+): Promise<Extract<ViewState, { kind: 'success' }>> {
   const live = await loadOfficialLiveSnapshot()
   const nameByElementId = new Map(live.players.map((player) => [player.id, player.webName]))
   const captain = snapshot.picks.picks.find((pick) => pick.isCaptain)
-  return captain ? (nameByElementId.get(captain.elementId) ?? null) : null
+  const transfers = (await getFplCacheDb().userTransfers.get(snapshot.entry.identity.entryId))
+    ?.transfers ?? []
+  const managerState = buildManagerGameweekStateFromSnapshot(snapshot, {
+    transfers,
+    players: live.players,
+  })
+  return {
+    kind: 'success',
+    snapshot,
+    captainName: captain ? (nameByElementId.get(captain.elementId) ?? null) : null,
+    lastRefreshAt,
+    servingCached,
+    managerState,
+    playerNames: nameByElementId,
+  }
 }
 
 export function TeamSettingsPage() {
@@ -45,14 +67,7 @@ export function TeamSettingsPage() {
     lastRefreshAt: number,
     servingCached: boolean,
   ) => {
-    const captainName = await captainNameForSnapshot(snapshot)
-    setState({
-      kind: 'success',
-      snapshot,
-      captainName,
-      lastRefreshAt,
-      servingCached,
-    })
+    setState(await enrichSnapshot(snapshot, lastRefreshAt, servingCached))
   }, [])
 
   useEffect(() => {
@@ -111,6 +126,10 @@ export function TeamSettingsPage() {
   }
 
   const hasConfiguredEntry = state.kind === 'success' || (Number.isFinite(entryId) && entryId > 0)
+  const sellRows =
+    state.kind === 'success' && state.managerState
+      ? [...state.managerState.sellPrices.values()].sort((a, b) => a.elementId - b.elementId)
+      : []
 
   return (
     <ExplorerScreen
@@ -217,7 +236,68 @@ export function TeamSettingsPage() {
                 <dt>Chips played</dt>
                 <dd>{state.snapshot.history.chips.length}</dd>
               </div>
+              {state.managerState ? (
+                <>
+                  <div>
+                    <dt>Free transfers</dt>
+                    <dd>{state.managerState.freeTransfers}</dd>
+                  </div>
+                  <div>
+                    <dt>Transfers this GW</dt>
+                    <dd>{state.managerState.eventTransfers}</dd>
+                  </div>
+                  <div>
+                    <dt>Hit cost</dt>
+                    <dd>
+                      {state.managerState.freeTransferDetail.hitCost > 0
+                        ? `−${state.managerState.freeTransferDetail.hitCost} pts (${state.managerState.freeTransferDetail.hits} hits)`
+                        : '0'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Active chip</dt>
+                    <dd>{state.managerState.activeChip ?? '—'}</dd>
+                  </div>
+                </>
+              ) : null}
             </dl>
+
+            {state.managerState && sellRows.length > 0 ? (
+              <section className="fpl-team-settings__sell" aria-label="Derived sell prices">
+                <h2 className="fpl-team-settings__sell-title">Sell prices (derived)</h2>
+                <p className="fpl-explorer__meta">
+                  Reconstructed from transfer log + bootstrap opening proxy. Uncertain rows use a
+                  conservative (low) sell value for budget checks.
+                </p>
+                <table className="fpl-team-settings__sell-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Player</th>
+                      <th scope="col">Now</th>
+                      <th scope="col">Bought</th>
+                      <th scope="col">Sell</th>
+                      <th scope="col">Method</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sellRows.map((row) => (
+                      <tr key={row.elementId}>
+                        <td>
+                          {state.playerNames.get(row.elementId) ?? `#${row.elementId}`}
+                          {row.uncertain ? (
+                            <span className="fpl-team-settings__uncertain"> uncertain</span>
+                          ) : null}
+                        </td>
+                        <td>{formatGbpFromTenths(row.nowCostTenths)}</td>
+                        <td>{formatGbpFromTenths(row.purchasePriceTenths)}</td>
+                        <td>{formatGbpFromTenths(row.sellPriceTenths)}</td>
+                        <td>{row.method}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            ) : null}
           </>
         ) : null}
       </Stack>
