@@ -1040,3 +1040,25 @@
   color: var(--color-foreground);
   color-scheme: dark;
 }
+
+.fpl-team-settings__live {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.fpl-team-settings__live-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.fpl-team-settings__audit {
+  display: inline-block;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
