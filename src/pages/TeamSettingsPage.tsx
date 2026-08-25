@@ -1,7 +1,12 @@
 import { Button, Label, Spinner, Stack, TextField } from '@songara/pwa-base/ui'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { EP_NEXT_DISCLAIMER } from '../analysis/gw0EpNext'
+import { buildLiveProjectionSample, GW0_PRIOR_SEASON_ID, LIVE_CURRENT_SEASON_ID } from '../analysis/liveBuild'
+import type { LiveProjection } from '../analysis/liveProject'
+import { liveAuditLine } from '../analysis/liveProject'
 import { getFplCacheDb } from '../data/db'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
+import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
 import { buildManagerGameweekStateFromSnapshot } from '../data/managerGameweekState'
 import { formatGbpFromTenths } from '../data/prices'
 import type { ManagerGameweekState, ManagerSnapshot } from '../data/types'
@@ -11,7 +16,7 @@ import {
   readConfiguredEntryId,
   refreshUserState,
 } from '../data/userStateRefresh'
-import { ExplorerScreen } from './ExplorerScreen'
+import { DataTable, ExplorerScreen, type DataTableColumn } from './ExplorerScreen'
 
 type ViewState =
   | { kind: 'idle' }
@@ -25,6 +30,17 @@ type ViewState =
       servingCached: boolean
       managerState: ManagerGameweekState | null
       playerNames: Map<number, string>
+    }
+
+type LiveSampleState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | {
+      kind: 'ready'
+      asOfEvent: number
+      source: 'squad' | 'top'
+      rows: LiveProjection[]
     }
 
 function formatRefreshTime(ms: number): string {
@@ -56,11 +72,115 @@ async function enrichSnapshot(
   }
 }
 
+const LIVE_COLUMNS: DataTableColumn<LiveProjection>[] = [
+  {
+    id: 'player',
+    label: 'Player',
+    sortValue: (row) => row.current.webName,
+    render: (row) => row.current.webName,
+  },
+  {
+    id: 'pos',
+    label: 'Pos',
+    sortValue: (row) => row.position,
+    render: (row) => row.position,
+  },
+  {
+    id: 'club',
+    label: 'Club',
+    sortValue: (row) => row.teamShortName,
+    render: (row) => row.teamShortName || '—',
+  },
+  {
+    id: 'ep',
+    label: 'Next EP',
+    hint: 'Our in-season Approach A expected points for the next GW (IS3).',
+    sortValue: (row) => row.ePtsNext,
+    render: (row) => row.ePtsNext.toFixed(2),
+  },
+  {
+    id: 'h5',
+    label: 'Next-5 Σ',
+    hint: 'Sum of next-X GW EP (default X=5). Same rates/minutes; per-GW fixtures only.',
+    sortValue: (row) => row.ePtsHorizon,
+    render: (row) => row.ePtsHorizon.toFixed(2),
+  },
+  {
+    id: 'avg',
+    label: 'Next-5 avg',
+    sortValue: (row) => (row.horizonEffective > 0 ? row.ePtsHorizon / row.horizonEffective : 0),
+    render: (row) =>
+      row.horizonEffective > 0 ? (row.ePtsHorizon / row.horizonEffective).toFixed(2) : '—',
+  },
+  {
+    id: 'conf',
+    label: 'Conf',
+    hint: 'Confidence from current/prior samples and fitness — not a second EP number.',
+    sortValue: (row) => row.confidence.value,
+    render: (row) => row.confidence.label,
+  },
+  {
+    id: 'epNext',
+    label: 'ep_next',
+    hint: EP_NEXT_DISCLAIMER,
+    sortValue: (row) => row.epNext,
+    render: (row) => (row.epNext == null ? '—' : row.epNext.toFixed(2)),
+  },
+  {
+    id: 'audit',
+    label: 'Audit',
+    render: (row) => {
+      const line = row.auditByGw[0] ? liveAuditLine(row.auditByGw[0]) : '—'
+      return (
+        <span className="fpl-team-settings__audit" title={line}>
+          {line}
+        </span>
+      )
+    },
+  },
+]
+
 export function TeamSettingsPage() {
   const [entryIdInput, setEntryIdInput] = useState('')
   const [state, setState] = useState<ViewState>({ kind: 'idle' })
+  const [liveSample, setLiveSample] = useState<LiveSampleState>({ kind: 'idle' })
 
   const entryId = useMemo(() => Number.parseInt(entryIdInput.trim(), 10), [entryIdInput])
+
+  const loadLiveSample = useCallback(async (manager: ManagerSnapshot | null) => {
+    setLiveSample({ kind: 'loading' })
+    try {
+      const [live, catalog] = await Promise.all([
+        loadOfficialLiveSnapshot(),
+        loadSeasonCatalog(),
+      ])
+      const priorKind =
+        catalog.find((entry) => entry.seasonId === GW0_PRIOR_SEASON_ID)?.kind ?? 'historical'
+      const currentKind =
+        catalog.find((entry) => entry.seasonId === LIVE_CURRENT_SEASON_ID)?.kind ?? 'current'
+      const [priorSnap, currentSnap] = await Promise.all([
+        loadSeasonSnapshot(GW0_PRIOR_SEASON_ID, { kind: priorKind }),
+        loadSeasonSnapshot(LIVE_CURRENT_SEASON_ID, { kind: currentKind }).catch(() => null),
+      ])
+      const built = buildLiveProjectionSample({
+        live,
+        prior: priorSnap,
+        current: currentSnap,
+        manager,
+        topN: 15,
+      })
+      setLiveSample({
+        kind: 'ready',
+        asOfEvent: built.asOfEvent,
+        source: built.source,
+        rows: built.sample,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to build live projections.'
+      setLiveSample({ kind: 'error', message })
+    }
+  }, [])
 
   const applySuccess = useCallback(async (
     snapshot: ManagerSnapshot,
@@ -68,18 +188,25 @@ export function TeamSettingsPage() {
     servingCached: boolean,
   ) => {
     setState(await enrichSnapshot(snapshot, lastRefreshAt, servingCached))
-  }, [])
+    void loadLiveSample(snapshot)
+  }, [loadLiveSample])
 
   useEffect(() => {
     void (async () => {
       const configured = await readConfiguredEntryId()
-      if (!configured) return
+      if (!configured) {
+        void loadLiveSample(null)
+        return
+      }
       setEntryIdInput(String(configured))
       const loaded = await loadUserState(configured, { triggerBackgroundRefresh: true })
-      if (!loaded) return
+      if (!loaded) {
+        void loadLiveSample(null)
+        return
+      }
       await applySuccess(loaded.snapshot, loaded.lastRefreshAt, loaded.servingCached)
     })()
-  }, [applySuccess])
+  }, [applySuccess, loadLiveSample])
 
   async function loadTeam() {
     if (!Number.isFinite(entryId) || entryId <= 0) {
@@ -100,6 +227,7 @@ export function TeamSettingsPage() {
       const message =
         error instanceof Error ? error.message : 'Failed to load manager data.'
       setState({ kind: 'error', message })
+      void loadLiveSample(null)
     }
   }
 
@@ -300,6 +428,40 @@ export function TeamSettingsPage() {
             ) : null}
           </>
         ) : null}
+
+        <section className="fpl-team-settings__live" aria-label="Live projection sample">
+          <h2 className="fpl-team-settings__live-title">Live projection sample (LT-4)</h2>
+          <p className="fpl-explorer__meta">
+            In-season next-GW EP and next-5 aggregate. Price / EP / confidence stay separate.
+            Official ep_next is reference only. Full My Team pitch is a later ticket.
+          </p>
+          {liveSample.kind === 'loading' ? (
+            <Spinner label="Building live projections from prior + current season…" />
+          ) : null}
+          {liveSample.kind === 'error' ? (
+            <p className="fpl-team-settings__error" role="alert">
+              {liveSample.message}
+            </p>
+          ) : null}
+          {liveSample.kind === 'ready' ? (
+            <>
+              <p className="fpl-explorer__meta">
+                As-of event {liveSample.asOfEvent}
+                {liveSample.source === 'squad'
+                  ? ' · configured squad'
+                  : ' · top 15 by next EP (load an entry to filter to your 15)'}
+              </p>
+              <DataTable
+                caption="Live EP sample"
+                columns={LIVE_COLUMNS}
+                rows={liveSample.rows}
+                empty="No projected players."
+                rowKey={(row) => row.code}
+                defaultSort={{ id: 'ep', direction: 'desc' }}
+              />
+            </>
+          ) : null}
+        </section>
       </Stack>
     </ExplorerScreen>
   )
