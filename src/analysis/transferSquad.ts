@@ -23,10 +23,26 @@ export const TRANSFER_STRATEGIES: ReadonlyArray<{
   id: TransferStrategyId
   label: string
   formula: string
+  blurb: string
 }> = [
-  { id: 'immediate', label: 'Immediate', formula: 'max Σ x·EP_next − 4h' },
-  { id: 'balanced', label: 'Balanced', formula: 'max Σ x·EP_next3 − 4h' },
-  { id: 'longTerm', label: 'Long-term', formula: 'max Σ x·EP_next5 − 4h' },
+  {
+    id: 'immediate',
+    label: 'This gameweek',
+    formula: 'max Σ x·EP_next − 4h',
+    blurb: 'Maximise expected points in the next GW, after hit penalties.',
+  },
+  {
+    id: 'balanced',
+    label: 'Next 3 GWs',
+    formula: 'max Σ x·EP_next3 − 4h',
+    blurb: 'Balance the next three gameweeks (small keep bias on current players).',
+  },
+  {
+    id: 'longTerm',
+    label: 'Next 5 GWs',
+    formula: 'max Σ x·EP_next5 − 4h',
+    blurb: 'Maximise expected points over the next five gameweeks.',
+  },
 ]
 
 /** Extra transfers beyond FT to enumerate (discovery §6.5). */
@@ -66,10 +82,59 @@ export type TransferSolution = {
   /** Buy-price spend of the final 15 (now_cost sum). */
   spendTenths: number
   remainingBankTenths: number
+  /** Net cash change vs start: sellProceeds − buySpend (positive = money into bank). */
+  costDeltaTenths: number
   totalEp: number
   currentEp: number
+  /** totalEp − currentEp (before hit penalty). */
+  epDeltaBeforeHits: number
   netEpVsCurrent: number
   objectiveValue: number
+}
+
+/** One display pairing of sell → buy (position-matched when possible). */
+export type TransferSwap = {
+  out: TransferMove
+  inn: TransferMove
+  costDeltaTenths: number
+  epDelta: number
+}
+
+/**
+ * Pair outs with ins for human-readable "A → B" lines.
+ * Prefer same position; leftover moves are zipped in name order.
+ */
+export function pairTransferSwaps(
+  outs: readonly TransferMove[],
+  ins: readonly TransferMove[],
+): TransferSwap[] {
+  const remainingIns = [...ins]
+  const usedOut = new Set<number>()
+  const pairs: TransferSwap[] = []
+
+  const tryPair = (out: TransferMove, preferSamePos: boolean) => {
+    if (usedOut.has(out.code)) return
+    const idx = remainingIns.findIndex((row) =>
+      preferSamePos ? row.position === out.position : true,
+    )
+    if (idx < 0) return
+    const [inn] = remainingIns.splice(idx, 1)
+    if (!inn) return
+    usedOut.add(out.code)
+    pairs.push({
+      out,
+      inn,
+      costDeltaTenths: inn.priceTenths - out.priceTenths,
+      epDelta: inn.ep - out.ep,
+    })
+  }
+
+  const orderedOuts = [...outs].sort(
+    (a, b) => a.position.localeCompare(b.position) || a.webName.localeCompare(b.webName),
+  )
+  for (const out of orderedOuts) tryPair(out, true)
+  for (const out of orderedOuts) tryPair(out, false)
+  return pairs
 }
 
 export type BuildTransferPoolOptions = {
@@ -466,6 +531,7 @@ export function assembleTransferSolution(args: {
     0,
   )
   const spendTenths = players.reduce((sum, row) => sum + row.nowCostTenths, 0)
+  const epDeltaBeforeHits = totalEp - currentEp
 
   return {
     strategy,
@@ -479,9 +545,11 @@ export function assembleTransferSolution(args: {
     ins: ins.sort((a, b) => a.webName.localeCompare(b.webName)),
     spendTenths,
     remainingBankTenths,
+    costDeltaTenths: sellProceeds - buySpend,
     totalEp,
     currentEp,
-    netEpVsCurrent: totalEp - hitCost - currentEp,
+    epDeltaBeforeHits,
+    netEpVsCurrent: epDeltaBeforeHits - hitCost,
     objectiveValue: totalEp - hitCost,
   }
 }

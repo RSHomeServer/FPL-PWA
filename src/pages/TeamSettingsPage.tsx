@@ -5,7 +5,11 @@ import { buildLiveProjectionSample, GW0_PRIOR_SEASON_ID, LIVE_CURRENT_SEASON_ID 
 import type { LiveProjection } from '../analysis/liveProject'
 import { liveAuditLine } from '../analysis/liveProject'
 import { solveAllTransferStrategies, type SolveAllStrategiesResult } from '../analysis/transferSolver'
-import { TRANSFER_STRATEGIES, type TransferSolution } from '../analysis/transferSquad'
+import {
+  pairTransferSwaps,
+  TRANSFER_STRATEGIES,
+  type TransferSolution,
+} from '../analysis/transferSquad'
 import { getFplCacheDb } from '../data/db'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
 import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
@@ -458,8 +462,8 @@ export function TeamSettingsPage() {
             </dl>
 
             {state.managerState && sellRows.length > 0 ? (
-              <section className="fpl-team-settings__sell" aria-label="Derived sell prices">
-                <h2 className="fpl-team-settings__sell-title">Sell prices (derived)</h2>
+              <details className="fpl-team-settings__fold">
+                <summary>Sell prices (derived) — {sellRows.length} players</summary>
                 <p className="fpl-explorer__meta">
                   Reconstructed from transfer log + bootstrap opening proxy. Uncertain rows use a
                   conservative (low) sell value for budget checks.
@@ -491,13 +495,16 @@ export function TeamSettingsPage() {
                     ))}
                   </tbody>
                 </table>
-              </section>
+              </details>
             ) : null}
           </>
         ) : null}
 
-        <section className="fpl-team-settings__live" aria-label="Live projection sample">
-          <h2 className="fpl-team-settings__live-title">Live projection sample (LT-4)</h2>
+        <details className="fpl-team-settings__fold">
+          <summary>
+            Live projection sample (LT-4)
+            {liveSample.kind === 'ready' ? ` — ${liveSample.rows.length} rows` : ''}
+          </summary>
           <p className="fpl-explorer__meta">
             In-season next-GW EP and next-5 aggregate. Price / EP / confidence stay separate.
             Official ep_next is reference only. Full My Team pitch is a later ticket.
@@ -528,13 +535,16 @@ export function TeamSettingsPage() {
               />
             </>
           ) : null}
-        </section>
+        </details>
 
-        <section className="fpl-team-settings__transfers" aria-label="Transfer MILP debug">
-          <h2 className="fpl-team-settings__live-title">Transfer optimiser (LT-5)</h2>
+        <section className="fpl-team-settings__transfers" aria-label="Transfer optimiser">
+          <h2 className="fpl-team-settings__live-title">Transfer optimiser</h2>
           <p className="fpl-explorer__meta">
-            Multi-transfer MILP on the final 15 (HiGHS). Enumerates T with hit costs from FT state.
-            Strategies use liveProject EP — not EPPM / ep_next. Full Transfer Assistant is LT-8.
+            Finds complete transfer <strong>baskets</strong> that keep a legal 15 (2 GK / 5 DEF /
+            5 MID / 3 FWD, ≤3 per club, affordable from bank + sell prices). Each basket is solved
+            as one simultaneous set — not one transfer at a time. Options differ by how many
+            transfers you make and by time horizon. Full Transfer Assistant polish is a later
+            ticket.
           </p>
           <Button
             variant="secondary"
@@ -549,7 +559,7 @@ export function TeamSettingsPage() {
             {transferOpt.kind === 'loading' ? 'Solving…' : 'Run transfer optimiser'}
           </Button>
           {transferOpt.kind === 'loading' ? (
-            <Spinner label="Enumerating transfer counts with HiGHS…" />
+            <Spinner label="Solving transfer baskets with HiGHS…" />
           ) : null}
           {transferOpt.kind === 'error' ? (
             <p className="fpl-team-settings__error" role="alert">
@@ -559,48 +569,34 @@ export function TeamSettingsPage() {
           {transferOpt.kind === 'ready' ? (
             <>
               <p className="fpl-explorer__meta">
-                Pool {transferOpt.poolSize} players · best per strategy below; expand T rows in each
-                table.
+                Candidate pool {transferOpt.poolSize} players
+                {state.kind === 'success' && state.managerState
+                  ? ` · ${state.managerState.freeTransfers} free transfer${state.managerState.freeTransfers === 1 ? '' : 's'} available`
+                  : ''}
+                . Hover column headers for definitions. The highlighted basket maximises expected
+                points after hit penalties for that horizon.
               </p>
               {TRANSFER_STRATEGIES.map((strategy) => {
                 const block = transferOpt.result[strategy.id]
                 return (
                   <div key={strategy.id} className="fpl-team-settings__xfer-block">
-                    <h3 className="fpl-team-settings__xfer-heading">
-                      {strategy.label}
-                      {block.best
-                        ? ` · best T=${block.best.transferCount} (net ${block.best.netEpVsCurrent.toFixed(2)} vs current)`
-                        : ' · no feasible solution'}
-                    </h3>
-                    <p className="fpl-explorer__meta">{strategy.formula}</p>
-                    <table className="fpl-team-settings__sell-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">T</th>
-                          <th scope="col">Hits</th>
-                          <th scope="col">Out → In</th>
-                          <th scope="col">EP</th>
-                          <th scope="col">−Hits</th>
-                          <th scope="col">Net vs now</th>
-                          <th scope="col">Bank left</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {block.byTransferCount.length === 0 ? (
-                          <tr>
-                            <td colSpan={7}>No feasible T in range.</td>
-                          </tr>
-                        ) : (
-                          block.byTransferCount.map((row) => (
-                            <TransferResultRow
-                              key={`${strategy.id}-${row.transferCount}`}
-                              row={row}
-                              highlight={block.best?.transferCount === row.transferCount}
-                            />
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                    <h3 className="fpl-team-settings__xfer-heading">{strategy.label}</h3>
+                    <p className="fpl-explorer__meta">{strategy.blurb}</p>
+                    {block.byTransferCount.length === 0 ? (
+                      <p className="fpl-team-settings__error" role="status">
+                        No feasible baskets for this horizon.
+                      </p>
+                    ) : (
+                      <div className="fpl-team-settings__baskets">
+                        {block.byTransferCount.map((row) => (
+                          <TransferBasketCard
+                            key={`${strategy.id}-${row.transferCount}`}
+                            row={row}
+                            recommended={block.best?.transferCount === row.transferCount}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -612,28 +608,146 @@ export function TeamSettingsPage() {
   )
 }
 
-function TransferResultRow({
+function formatSignedGbp(tenths: number): string {
+  if (tenths === 0) return formatGbpFromTenths(0)
+  const sign = tenths > 0 ? '+' : '−'
+  return `${sign}${formatGbpFromTenths(Math.abs(tenths))}`
+}
+
+function formatSignedPts(value: number, digits = 2): string {
+  if (Object.is(value, -0) || value === 0) return (0).toFixed(digits)
+  const sign = value > 0 ? '+' : '−'
+  return `${sign}${Math.abs(value).toFixed(digits)}`
+}
+
+function basketTitle(row: TransferSolution): string {
+  if (row.transferCount === 0) return 'Hold — make no transfers'
+  const freeUsed = Math.min(row.transferCount, row.freeTransfers)
+  const hitBit =
+    row.hits > 0
+      ? ` · ${row.hits} hit${row.hits === 1 ? '' : 's'} (−${row.hitCost} pts)`
+      : ' · no hits'
+  const freeBit =
+    freeUsed > 0
+      ? ` · uses ${freeUsed} free transfer${freeUsed === 1 ? '' : 's'}`
+      : ''
+  return `${row.transferCount} transfer${row.transferCount === 1 ? '' : 's'}${freeBit}${hitBit}`
+}
+
+function TransferBasketCard({
   row,
-  highlight,
+  recommended,
 }: {
   row: TransferSolution
-  highlight: boolean
+  recommended: boolean
 }) {
-  const moves =
-    row.transferCount === 0
-      ? '—'
-      : `Out ${row.outs.map((o) => o.webName).join(', ')} → In ${row.ins.map((i) => i.webName).join(', ')}`
+  const swaps = pairTransferSwaps(row.outs, row.ins)
   return (
-    <tr className={highlight ? 'fpl-team-settings__xfer-best' : undefined}>
-      <td>{row.transferCount}</td>
-      <td>
-        {row.hits} (−{row.hitCost})
-      </td>
-      <td>{moves}</td>
-      <td>{row.totalEp.toFixed(2)}</td>
-      <td>{row.objectiveValue.toFixed(2)}</td>
-      <td>{row.netEpVsCurrent.toFixed(2)}</td>
-      <td>{formatGbpFromTenths(row.remainingBankTenths)}</td>
-    </tr>
+    <article
+      className={
+        recommended
+          ? 'fpl-team-settings__basket fpl-team-settings__basket--best'
+          : 'fpl-team-settings__basket'
+      }
+    >
+      <header className="fpl-team-settings__basket-head">
+        <h4 className="fpl-team-settings__basket-title">
+          {basketTitle(row)}
+          {recommended ? <span className="fpl-team-settings__basket-badge">Best for this horizon</span> : null}
+        </h4>
+        <p className="fpl-explorer__meta">
+          Final squad stays within FPL rules (2/5/5/3, ≤3 per club) and is funded by bank + sell
+          prices.
+        </p>
+      </header>
+
+      {row.transferCount === 0 ? (
+        <p className="fpl-explorer__meta">Keep the current 15. No cost change and no hit risk.</p>
+      ) : (
+        <table className="fpl-team-settings__sell-table fpl-team-settings__swap-table">
+          <thead>
+            <tr>
+              <th scope="col" title="Player you sell (sell price used for budget)">
+                Sell
+                <span className="fpl-explorer__col-hint" role="tooltip">
+                  Player leaving the squad. Price is the derived sell value used in the budget.
+                </span>
+              </th>
+              <th scope="col" title="Player you buy (current list price)">
+                Buy
+                <span className="fpl-explorer__col-hint" role="tooltip">
+                  Player joining the squad. Price is live now_cost.
+                </span>
+              </th>
+              <th scope="col" title="Position line for this swap">
+                Pos
+                <span className="fpl-explorer__col-hint" role="tooltip">
+                  Position pool (GK / DEF / MID / FWD). Swaps are paired by position when possible.
+                </span>
+              </th>
+              <th scope="col" title="Buy price minus sell price for this swap">
+                Cost Δ
+                <span className="fpl-explorer__col-hint" role="tooltip">
+                  Buy price − sell price for this pair. Positive means this swap spends bank.
+                </span>
+              </th>
+              <th scope="col" title="Expected-points change for this swap under the horizon">
+                EP Δ
+                <span className="fpl-explorer__col-hint" role="tooltip">
+                  Change in expected points for this pair under the chosen horizon (before hit
+                  penalty).
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {swaps.map((swap) => (
+              <tr key={`${swap.out.code}-${swap.inn.code}`}>
+                <td>
+                  {swap.out.webName}{' '}
+                  <span className="fpl-team-settings__muted">
+                    ({swap.out.teamShortName} · {formatGbpFromTenths(swap.out.priceTenths)})
+                  </span>
+                </td>
+                <td>
+                  {swap.inn.webName}{' '}
+                  <span className="fpl-team-settings__muted">
+                    ({swap.inn.teamShortName} · {formatGbpFromTenths(swap.inn.priceTenths)})
+                  </span>
+                </td>
+                <td>{swap.out.position === swap.inn.position ? swap.out.position : `${swap.out.position}→${swap.inn.position}`}</td>
+                <td>{formatSignedGbp(swap.costDeltaTenths)}</td>
+                <td>{formatSignedPts(swap.epDelta)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <dl className="fpl-team-settings__basket-stats">
+        <div title="Sell proceeds minus buy spend across the whole basket (positive = bank rises)">
+          <dt>Net cost (basket)</dt>
+          <dd>{formatSignedGbp(-row.costDeltaTenths)}</dd>
+        </div>
+        <div title="Expected-points change of the final 15 vs current 15, before subtracting hits">
+          <dt>EP change (before hits)</dt>
+          <dd>{formatSignedPts(row.epDeltaBeforeHits)}</dd>
+        </div>
+        <div title="4 points per transfer beyond your free transfers">
+          <dt>Hit penalty</dt>
+          <dd>
+            {row.hitCost > 0 ? `−${row.hitCost} pts (${row.hits}×4)` : 'None'}
+          </dd>
+        </div>
+        <div title="EP change after subtracting the hit penalty — the figure the solver maximises">
+          <dt>Net EP after hits</dt>
+          <dd>{formatSignedPts(row.netEpVsCurrent)}</dd>
+        </div>
+        <div title="Bank remaining after all sells and buys in this basket">
+          <dt>Bank left</dt>
+          <dd>{formatGbpFromTenths(row.remainingBankTenths)}</dd>
+        </div>
+      </dl>
+    </article>
   )
 }

@@ -9,11 +9,29 @@ import {
   hitCostForTransfers,
   hitCountForTransfers,
   isLegalTransferSquad,
+  pairTransferSwaps,
   transferCountsToEnumerate,
   transferObjectiveEp,
   type TransferLpCandidate,
 } from './transferSquad'
 import type { LiveProjection } from './liveProject'
+
+describe('pairTransferSwaps', () => {
+  it('pairs same-position moves first', () => {
+    const outs = [
+      { code: 1, webName: 'A', teamShortName: 'T1', position: 'MID', priceTenths: 50, ep: 3 },
+      { code: 2, webName: 'B', teamShortName: 'T2', position: 'FWD', priceTenths: 60, ep: 4 },
+    ]
+    const ins = [
+      { code: 9, webName: 'X', teamShortName: 'T9', position: 'FWD', priceTenths: 70, ep: 6 },
+      { code: 8, webName: 'Y', teamShortName: 'T8', position: 'MID', priceTenths: 55, ep: 5 },
+    ]
+    const pairs = pairTransferSwaps(outs, ins)
+    expect(pairs).toHaveLength(2)
+    expect(pairs[0]).toMatchObject({ out: { code: 2 }, inn: { code: 9 }, costDeltaTenths: 10, epDelta: 2 })
+    expect(pairs[1]).toMatchObject({ out: { code: 1 }, inn: { code: 8 }, costDeltaTenths: 5, epDelta: 2 })
+  })
+})
 
 describe('transfer hit maths', () => {
   it('enumerates 0..FT+3 and prices hits from FT', () => {
