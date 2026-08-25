@@ -4,6 +4,8 @@ import { EP_NEXT_DISCLAIMER } from '../analysis/gw0EpNext'
 import { buildLiveProjectionSample, GW0_PRIOR_SEASON_ID, LIVE_CURRENT_SEASON_ID } from '../analysis/liveBuild'
 import type { LiveProjection } from '../analysis/liveProject'
 import { liveAuditLine } from '../analysis/liveProject'
+import { solveAllTransferStrategies, type SolveAllStrategiesResult } from '../analysis/transferSolver'
+import { TRANSFER_STRATEGIES, type TransferSolution } from '../analysis/transferSquad'
 import { getFplCacheDb } from '../data/db'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
 import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
@@ -41,7 +43,14 @@ type LiveSampleState =
       asOfEvent: number
       source: 'squad' | 'top'
       rows: LiveProjection[]
+      projected: LiveProjection[]
     }
+
+type TransferOptState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; result: SolveAllStrategiesResult; poolSize: number }
 
 function formatRefreshTime(ms: number): string {
   return new Date(ms).toLocaleString()
@@ -144,6 +153,7 @@ export function TeamSettingsPage() {
   const [entryIdInput, setEntryIdInput] = useState('')
   const [state, setState] = useState<ViewState>({ kind: 'idle' })
   const [liveSample, setLiveSample] = useState<LiveSampleState>({ kind: 'idle' })
+  const [transferOpt, setTransferOpt] = useState<TransferOptState>({ kind: 'idle' })
 
   const entryId = useMemo(() => Number.parseInt(entryIdInput.trim(), 10), [entryIdInput])
 
@@ -174,6 +184,7 @@ export function TeamSettingsPage() {
         asOfEvent: built.asOfEvent,
         source: built.source,
         rows: built.sample,
+        projected: built.projected,
       })
     } catch (error) {
       const message =
@@ -258,6 +269,62 @@ export function TeamSettingsPage() {
     state.kind === 'success' && state.managerState
       ? [...state.managerState.sellPrices.values()].sort((a, b) => a.elementId - b.elementId)
       : []
+
+  async function runTransferOptimiser() {
+    if (state.kind !== 'success' || !state.managerState) {
+      setTransferOpt({ kind: 'error', message: 'Load an entry with squad data first.' })
+      return
+    }
+    if (liveSample.kind !== 'ready' || liveSample.projected.length === 0) {
+      setTransferOpt({ kind: 'error', message: 'Live projections are not ready yet.' })
+      return
+    }
+
+    const mgr = state.managerState
+    const byElement = new Map(liveSample.projected.map((row) => [row.current.id, row]))
+    const currentSquad: LiveProjection[] = []
+    for (const pick of mgr.picks) {
+      const row = byElement.get(pick.elementId)
+      if (!row) {
+        setTransferOpt({
+          kind: 'error',
+          message: `Missing live projection for pick element ${pick.elementId} (code ${pick.code}).`,
+        })
+        return
+      }
+      currentSquad.push(row)
+    }
+    if (currentSquad.length !== 15) {
+      setTransferOpt({
+        kind: 'error',
+        message: `Need 15 projected picks, got ${currentSquad.length}.`,
+      })
+      return
+    }
+
+    setTransferOpt({ kind: 'loading' })
+    try {
+      const chip = mgr.activeChip?.toLowerCase() ?? null
+      const result = await solveAllTransferStrategies({
+        projected: liveSample.projected,
+        currentSquad,
+        bankTenths: mgr.bankTenths,
+        freeTransfers: mgr.freeTransfers,
+        sellPriceTenthsByCode: mgr.sellPriceTenthsByCode,
+        wildcard: chip === 'wildcard',
+        freeHit: chip === 'freehit',
+      })
+      setTransferOpt({
+        kind: 'ready',
+        result,
+        poolSize: result.immediate.poolSize,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Transfer optimiser failed.'
+      setTransferOpt({ kind: 'error', message })
+    }
+  }
 
   return (
     <ExplorerScreen
@@ -462,7 +529,111 @@ export function TeamSettingsPage() {
             </>
           ) : null}
         </section>
+
+        <section className="fpl-team-settings__transfers" aria-label="Transfer MILP debug">
+          <h2 className="fpl-team-settings__live-title">Transfer optimiser (LT-5)</h2>
+          <p className="fpl-explorer__meta">
+            Multi-transfer MILP on the final 15 (HiGHS). Enumerates T with hit costs from FT state.
+            Strategies use liveProject EP — not EPPM / ep_next. Full Transfer Assistant is LT-8.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => void runTransferOptimiser()}
+            disabled={
+              transferOpt.kind === 'loading' ||
+              state.kind !== 'success' ||
+              !state.managerState ||
+              liveSample.kind !== 'ready'
+            }
+          >
+            {transferOpt.kind === 'loading' ? 'Solving…' : 'Run transfer optimiser'}
+          </Button>
+          {transferOpt.kind === 'loading' ? (
+            <Spinner label="Enumerating transfer counts with HiGHS…" />
+          ) : null}
+          {transferOpt.kind === 'error' ? (
+            <p className="fpl-team-settings__error" role="alert">
+              {transferOpt.message}
+            </p>
+          ) : null}
+          {transferOpt.kind === 'ready' ? (
+            <>
+              <p className="fpl-explorer__meta">
+                Pool {transferOpt.poolSize} players · best per strategy below; expand T rows in each
+                table.
+              </p>
+              {TRANSFER_STRATEGIES.map((strategy) => {
+                const block = transferOpt.result[strategy.id]
+                return (
+                  <div key={strategy.id} className="fpl-team-settings__xfer-block">
+                    <h3 className="fpl-team-settings__xfer-heading">
+                      {strategy.label}
+                      {block.best
+                        ? ` · best T=${block.best.transferCount} (net ${block.best.netEpVsCurrent.toFixed(2)} vs current)`
+                        : ' · no feasible solution'}
+                    </h3>
+                    <p className="fpl-explorer__meta">{strategy.formula}</p>
+                    <table className="fpl-team-settings__sell-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">T</th>
+                          <th scope="col">Hits</th>
+                          <th scope="col">Out → In</th>
+                          <th scope="col">EP</th>
+                          <th scope="col">−Hits</th>
+                          <th scope="col">Net vs now</th>
+                          <th scope="col">Bank left</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {block.byTransferCount.length === 0 ? (
+                          <tr>
+                            <td colSpan={7}>No feasible T in range.</td>
+                          </tr>
+                        ) : (
+                          block.byTransferCount.map((row) => (
+                            <TransferResultRow
+                              key={`${strategy.id}-${row.transferCount}`}
+                              row={row}
+                              highlight={block.best?.transferCount === row.transferCount}
+                            />
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })}
+            </>
+          ) : null}
+        </section>
       </Stack>
     </ExplorerScreen>
+  )
+}
+
+function TransferResultRow({
+  row,
+  highlight,
+}: {
+  row: TransferSolution
+  highlight: boolean
+}) {
+  const moves =
+    row.transferCount === 0
+      ? '—'
+      : `Out ${row.outs.map((o) => o.webName).join(', ')} → In ${row.ins.map((i) => i.webName).join(', ')}`
+  return (
+    <tr className={highlight ? 'fpl-team-settings__xfer-best' : undefined}>
+      <td>{row.transferCount}</td>
+      <td>
+        {row.hits} (−{row.hitCost})
+      </td>
+      <td>{moves}</td>
+      <td>{row.totalEp.toFixed(2)}</td>
+      <td>{row.objectiveValue.toFixed(2)}</td>
+      <td>{row.netEpVsCurrent.toFixed(2)}</td>
+      <td>{formatGbpFromTenths(row.remainingBankTenths)}</td>
+    </tr>
   )
 }
