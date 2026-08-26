@@ -1134,14 +1134,21 @@
   font-weight: 600;
 }
 
+.fpl-team-settings__swap-player {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+}
+
 .fpl-team-settings__sense {
   display: grid;
   gap: 0.5rem;
   margin-bottom: 0.35rem;
 }
 
-.fpl-team-settings__sense code {
-  font-size: 0.85em;
+.fpl-team-settings__sense .fpl-explorer__field {
+  max-width: 22rem;
 }
 
 .fpl-team-settings__basket {

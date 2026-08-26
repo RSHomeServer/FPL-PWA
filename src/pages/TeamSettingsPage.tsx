@@ -9,12 +9,16 @@ import {
   pairTransferSwaps,
   TRANSFER_STRATEGIES,
   type TransferSolution,
+  type TransferSwap,
 } from '../analysis/transferSquad'
+import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { getFplCacheDb } from '../data/db'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
 import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
 import { buildManagerGameweekStateFromSnapshot } from '../data/managerGameweekState'
+import { playerDisplayName } from '../data/parse'
 import { formatGbpFromTenths } from '../data/prices'
+import { teamRowStyle } from '../data/teamColors'
 import type { ManagerGameweekState, ManagerSnapshot } from '../data/types'
 import {
   loadCachedUserStateAfterFailure,
@@ -586,11 +590,6 @@ export function TeamSettingsPage() {
                 projected={liveSample.projected}
                 currentCodes={transferOpt.currentCodes}
                 result={transferOpt.result}
-                sellPriceTenthsByCode={
-                  state.kind === 'success' && state.managerState
-                    ? state.managerState.sellPriceTenthsByCode
-                    : new Map()
-                }
               />
               {TRANSFER_STRATEGIES.map((strategy) => {
                 const block = transferOpt.result[strategy.id]
@@ -660,137 +659,181 @@ type SenseRow = {
   code: number
   player: LiveProjection
   role: 'squad' | 'suggested'
-  sellTenths: number | null
+}
+
+function teamRef(player: LiveProjection) {
+  return {
+    code: player.current.teamCode,
+    name: player.teamName || player.teamShortName,
+    shortName: player.teamShortName || player.teamName,
+  }
 }
 
 function TransferSenseCheckTable({
   projected,
   currentCodes,
   result,
-  sellPriceTenthsByCode,
 }: {
   projected: readonly LiveProjection[]
   currentCodes: readonly number[]
   result: SolveAllStrategiesResult
-  sellPriceTenthsByCode: ReadonlyMap<number, number>
 }) {
-  const currentSet = new Set(currentCodes)
-  const suggested = new Set<number>()
-  for (const strategy of TRANSFER_STRATEGIES) {
-    for (const basket of result[strategy.id].byTransferCount) {
-      if (basket.transferCount === 0) continue
-      for (const inn of basket.ins) suggested.add(inn.code)
+  const [query, setQuery] = useState('')
+
+  const allRows = useMemo(() => {
+    const currentSet = new Set(currentCodes)
+    const suggested = new Set<number>()
+    for (const strategy of TRANSFER_STRATEGIES) {
+      for (const basket of result[strategy.id].byTransferCount) {
+        if (basket.transferCount === 0) continue
+        for (const inn of basket.ins) suggested.add(inn.code)
+      }
     }
-  }
 
-  const byCode = new Map(projected.map((row) => [row.code, row]))
-  const rows: SenseRow[] = []
-  for (const code of currentCodes) {
-    const player = byCode.get(code)
-    if (!player) continue
-    rows.push({
-      code,
-      player,
-      role: 'squad',
-      sellTenths: sellPriceTenthsByCode.get(code) ?? player.nowCostTenths,
+    const byCode = new Map(projected.map((row) => [row.code, row]))
+    const rows: SenseRow[] = []
+    for (const code of currentCodes) {
+      const player = byCode.get(code)
+      if (!player) continue
+      rows.push({ code, player, role: 'squad' })
+    }
+    for (const code of [...suggested].sort((a, b) => a - b)) {
+      if (currentSet.has(code)) continue
+      const player = byCode.get(code)
+      if (!player) continue
+      rows.push({ code, player, role: 'suggested' })
+    }
+    return rows
+  }, [currentCodes, projected, result])
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return allRows
+    return allRows.filter((row) => {
+      const p = row.player
+      const hay = [
+        playerDisplayName(p.current),
+        p.current.webName,
+        p.teamShortName,
+        p.teamName,
+        p.position,
+        row.role === 'squad' ? 'in squad' : 'suggested buy',
+      ]
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(needle)
     })
-  }
-  for (const code of [...suggested].sort((a, b) => a - b)) {
-    if (currentSet.has(code)) continue
-    const player = byCode.get(code)
-    if (!player) continue
-    rows.push({ code, player, role: 'suggested', sellTenths: null })
-  }
+  }, [allRows, query])
 
-  rows.sort((a, b) => {
-    if (a.role !== b.role) return a.role === 'squad' ? -1 : 1
-    return (
-      b.player.ePtsNext - a.player.ePtsNext ||
-      a.player.current.webName.localeCompare(b.player.current.webName)
-    )
-  })
+  const columns: DataTableColumn<SenseRow>[] = useMemo(
+    () => [
+      {
+        id: 'player',
+        label: 'Player',
+        hint: 'Photo + web name from the live bootstrap.',
+        sortValue: (row) => playerDisplayName(row.player.current),
+        render: (row) => <PlayerLabel player={row.player.current} />,
+      },
+      {
+        id: 'pos',
+        label: 'Pos',
+        hint: 'FPL position (GK, DEF, MID, FWD).',
+        sortValue: (row) => row.player.position,
+        render: (row) => row.player.position,
+      },
+      {
+        id: 'club',
+        label: 'Club',
+        hint: 'Club crest and short name.',
+        sortValue: (row) => row.player.teamShortName || row.player.teamName,
+        render: (row) => <TeamLabel team={teamRef(row.player)} />,
+      },
+      {
+        id: 'role',
+        label: 'Role',
+        hint: 'In squad = currently owned. Suggested buy = inbound in at least one basket.',
+        sortValue: (row) => (row.role === 'squad' ? 0 : 1),
+        render: (row) => (row.role === 'squad' ? 'In squad' : 'Suggested buy'),
+      },
+      {
+        id: 'price',
+        label: 'Price',
+        hint: 'Live list price (now_cost).',
+        sortValue: (row) => row.player.nowCostTenths,
+        render: (row) => formatGbpFromTenths(row.player.nowCostTenths),
+      },
+      {
+        id: 'seasonPts',
+        label: 'Season Points',
+        hint: 'Season total_points from the live bootstrap.',
+        sortValue: (row) => row.player.current.totalPoints,
+        render: (row) => row.player.current.totalPoints,
+      },
+      {
+        id: 'lastGw',
+        label: 'Last GW Points',
+        hint: 'Official bootstrap event_points for the latest / current gameweek.',
+        sortValue: (row) => row.player.current.eventPoints ?? 0,
+        render: (row) => row.player.current.eventPoints ?? 0,
+      },
+      {
+        id: 'form',
+        label: 'Form',
+        hint: 'Official FPL form from bootstrap.',
+        sortValue: (row) => row.player.current.form,
+        render: (row) => row.player.current.form.toFixed(1),
+      },
+      {
+        id: 'nextEp',
+        label: 'Next EP',
+        hint: 'In-season Approach A expected points for the next gameweek (IS3).',
+        sortValue: (row) => row.player.ePtsNext,
+        render: (row) => row.player.ePtsNext.toFixed(2),
+      },
+      {
+        id: 'h5',
+        label: 'Next-5 EP',
+        hint: 'Sum of next-X GW EP (default X=5) from the live projection engine.',
+        sortValue: (row) => row.player.ePtsHorizon,
+        render: (row) => row.player.ePtsHorizon.toFixed(2),
+      },
+    ],
+    [],
+  )
 
   return (
     <section className="fpl-team-settings__sense" aria-label="Transfer sense-check">
       <h3 className="fpl-team-settings__xfer-heading">Sense-check — squad & suggested buys</h3>
       <p className="fpl-explorer__meta">
-        Your current 15 plus anyone recommended as a buy in any basket below. Last GW is bootstrap{' '}
-        <code>event_points</code>; Next EP is our in-season projection (not official ep_next).
+        Your current 15 plus anyone recommended as a buy in any basket below. Click column headers to
+        sort. Filter matches name, club, position, or role.
       </p>
-      <table className="fpl-team-settings__sell-table fpl-team-settings__swap-table">
-        <thead>
-          <tr>
-            <th scope="col" tabIndex={0}>
-              Player
-            </th>
-            <th scope="col" tabIndex={0}>
-              Pos
-            </th>
-            <th scope="col" tabIndex={0}>
-              Club
-            </th>
-            <th scope="col" tabIndex={0} title="In your squad or a suggested buy target">
-              Role
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                In squad = currently owned. Suggested buy = appears as an inbound transfer in at
-                least one basket.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Current list price">
-              Price
-            </th>
-            <th scope="col" tabIndex={0} title="Derived sell price if owned">
-              Sell
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Derived sell value used in the budget (owned players only).
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Points in the most recent gameweek">
-              Last GW
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Official bootstrap event_points for the latest / current gameweek.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Official FPL form">
-              Form
-            </th>
-            <th scope="col" tabIndex={0} title="Season total points so far">
-              Season
-            </th>
-            <th scope="col" tabIndex={0} title="Our expected points for the next GW">
-              Next EP
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                In-season Approach A expected points for the next gameweek (IS3).
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Sum of expected points over the next 5 GWs">
-              Next-5 EP
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Sum of next-X GW EP (default X=5) from the live projection engine.
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.code}>
-              <td>{row.player.current.webName}</td>
-              <td>{row.player.position}</td>
-              <td>{row.player.teamShortName || '—'}</td>
-              <td>{row.role === 'squad' ? 'In squad' : 'Suggested buy'}</td>
-              <td>{formatGbpFromTenths(row.player.nowCostTenths)}</td>
-              <td>{row.sellTenths == null ? '—' : formatGbpFromTenths(row.sellTenths)}</td>
-              <td>{row.player.current.eventPoints ?? 0}</td>
-              <td>{row.player.current.form.toFixed(1)}</td>
-              <td>{row.player.current.totalPoints}</td>
-              <td>{row.player.ePtsNext.toFixed(2)}</td>
-              <td>{row.player.ePtsHorizon.toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Label className="fpl-explorer__field" htmlFor="fpl-transfer-sense-filter">
+        Filter
+        <TextField
+          id="fpl-transfer-sense-filter"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search player, club, role…"
+          autoComplete="off"
+        />
+      </Label>
+      <DataTable
+        caption="Squad and suggested buys"
+        columns={columns}
+        rows={filtered}
+        empty="No players match this filter."
+        rowKey={(row) => row.code}
+        defaultSort={{ id: 'nextEp', direction: 'desc' }}
+        rowStyle={(row) => teamRowStyle(teamRef(row.player))}
+      />
     </section>
   )
+}
+
+type SwapRow = TransferSwap & {
+  outProj: LiveProjection | undefined
+  inProj: LiveProjection | undefined
 }
 
 function TransferBasketCard({
@@ -802,7 +845,118 @@ function TransferBasketCard({
   recommended: boolean
   byCode: ReadonlyMap<number, LiveProjection>
 }) {
-  const swaps = pairTransferSwaps(row.outs, row.ins)
+  const swapRows: SwapRow[] = useMemo(() => {
+    return pairTransferSwaps(row.outs, row.ins).map((swap) => ({
+      ...swap,
+      outProj: byCode.get(swap.out.code),
+      inProj: byCode.get(swap.inn.code),
+    }))
+  }, [byCode, row.ins, row.outs])
+
+  const columns: DataTableColumn<SwapRow>[] = useMemo(
+    () => [
+      {
+        id: 'sell',
+        label: 'Sell',
+        hint: 'Player leaving. Price in parentheses is the derived sell value used in the budget.',
+        sortValue: (swap) => swap.out.webName,
+        render: (swap) => (
+          <span className="fpl-team-settings__swap-player">
+            <PlayerLabel
+              player={
+                swap.outProj?.current ?? {
+                  code: swap.out.code,
+                  webName: swap.out.webName,
+                  firstName: '',
+                  secondName: '',
+                }
+              }
+            />
+            <span className="fpl-team-settings__muted">
+              {formatGbpFromTenths(swap.out.priceTenths)}
+            </span>
+          </span>
+        ),
+      },
+      {
+        id: 'sellLastGw',
+        label: 'Last GW Points',
+        hint: 'Seller’s official event_points from the latest / current gameweek.',
+        sortValue: (swap) => swap.outProj?.current.eventPoints ?? -1,
+        render: (swap) => swap.outProj?.current.eventPoints ?? '—',
+      },
+      {
+        id: 'sellEp',
+        label: 'Next EP',
+        hint: 'Seller’s in-season next-GW expected points (IS3).',
+        sortValue: (swap) => swap.outProj?.ePtsNext ?? Number.NEGATIVE_INFINITY,
+        render: (swap) => (swap.outProj ? swap.outProj.ePtsNext.toFixed(2) : '—'),
+      },
+      {
+        id: 'buy',
+        label: 'Buy',
+        hint: 'Player joining. Price in parentheses is live now_cost.',
+        sortValue: (swap) => swap.inn.webName,
+        render: (swap) => (
+          <span className="fpl-team-settings__swap-player">
+            <PlayerLabel
+              player={
+                swap.inProj?.current ?? {
+                  code: swap.inn.code,
+                  webName: swap.inn.webName,
+                  firstName: '',
+                  secondName: '',
+                }
+              }
+            />
+            <span className="fpl-team-settings__muted">
+              {formatGbpFromTenths(swap.inn.priceTenths)}
+            </span>
+          </span>
+        ),
+      },
+      {
+        id: 'buyLastGw',
+        label: 'Last GW Points',
+        hint: 'Buyer’s official event_points from the latest / current gameweek.',
+        sortValue: (swap) => swap.inProj?.current.eventPoints ?? -1,
+        render: (swap) => swap.inProj?.current.eventPoints ?? '—',
+      },
+      {
+        id: 'buyEp',
+        label: 'Next EP',
+        hint: 'Buyer’s in-season next-GW expected points (IS3).',
+        sortValue: (swap) => swap.inProj?.ePtsNext ?? Number.NEGATIVE_INFINITY,
+        render: (swap) => (swap.inProj ? swap.inProj.ePtsNext.toFixed(2) : '—'),
+      },
+      {
+        id: 'pos',
+        label: 'Pos',
+        hint: 'Position pool for this swap.',
+        sortValue: (swap) => swap.out.position,
+        render: (swap) =>
+          swap.out.position === swap.inn.position
+            ? swap.out.position
+            : `${swap.out.position}→${swap.inn.position}`,
+      },
+      {
+        id: 'cost',
+        label: 'Cost Δ',
+        hint: 'Buy price − sell price. Positive means this swap spends bank.',
+        sortValue: (swap) => swap.costDeltaTenths,
+        render: (swap) => formatSignedGbp(swap.costDeltaTenths),
+      },
+      {
+        id: 'horizon',
+        label: 'Horizon EP Δ',
+        hint: 'Change in expected points for this pair under the chosen horizon (before hits).',
+        sortValue: (swap) => swap.epDelta,
+        render: (swap) => formatSignedPts(swap.epDelta),
+      },
+    ],
+    [],
+  )
+
   return (
     <article
       className={
@@ -820,101 +974,19 @@ function TransferBasketCard({
         </h4>
         <p className="fpl-explorer__meta">
           Final squad stays within FPL rules (2/5/5/3, ≤3 per club) and is funded by bank + sell
-          prices.
+          prices. Click headers to sort.
         </p>
       </header>
 
-      <table className="fpl-team-settings__sell-table fpl-team-settings__swap-table">
-        <thead>
-          <tr>
-            <th scope="col" tabIndex={0} title="Player you sell">
-              Sell
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Player leaving. Price shown is the derived sell value used in the budget.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Points in the most recent gameweek (seller)">
-              Last GW
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Seller’s official event_points from the latest / current gameweek.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Our next-GW expected points (seller)">
-              Next EP
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Seller’s in-season next-GW expected points (IS3).
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Player you buy">
-              Buy
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Player joining. Price shown is live now_cost.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Points in the most recent gameweek (buyer)">
-              Last GW
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Buyer’s official event_points from the latest / current gameweek.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Our next-GW expected points (buyer)">
-              Next EP
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Buyer’s in-season next-GW expected points (IS3).
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Position line for this swap">
-              Pos
-            </th>
-            <th scope="col" tabIndex={0} title="Buy price minus sell price for this swap">
-              Cost Δ
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Buy price − sell price. Positive means this swap spends bank.
-              </span>
-            </th>
-            <th scope="col" tabIndex={0} title="Horizon EP change for this swap">
-              Horizon EP Δ
-              <span className="fpl-explorer__col-hint" role="tooltip">
-                Change in expected points for this pair under the chosen horizon (before hit
-                penalty).
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {swaps.map((swap) => {
-            const outProj = byCode.get(swap.out.code)
-            const inProj = byCode.get(swap.inn.code)
-            return (
-              <tr key={`${swap.out.code}-${swap.inn.code}`}>
-                <td>
-                  {swap.out.webName}{' '}
-                  <span className="fpl-team-settings__muted">
-                    ({swap.out.teamShortName} · {formatGbpFromTenths(swap.out.priceTenths)})
-                  </span>
-                </td>
-                <td>{outProj?.current.eventPoints ?? '—'}</td>
-                <td>{outProj ? outProj.ePtsNext.toFixed(2) : '—'}</td>
-                <td>
-                  {swap.inn.webName}{' '}
-                  <span className="fpl-team-settings__muted">
-                    ({swap.inn.teamShortName} · {formatGbpFromTenths(swap.inn.priceTenths)})
-                  </span>
-                </td>
-                <td>{inProj?.current.eventPoints ?? '—'}</td>
-                <td>{inProj ? inProj.ePtsNext.toFixed(2) : '—'}</td>
-                <td>
-                  {swap.out.position === swap.inn.position
-                    ? swap.out.position
-                    : `${swap.out.position}→${swap.inn.position}`}
-                </td>
-                <td>{formatSignedGbp(swap.costDeltaTenths)}</td>
-                <td>{formatSignedPts(swap.epDelta)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <DataTable
+        caption={`Transfers for ${basketTitle(row)}`}
+        columns={columns}
+        rows={swapRows}
+        empty="No transfers in this basket."
+        rowKey={(swap) => `${swap.out.code}-${swap.inn.code}`}
+        defaultSort={{ id: 'horizon', direction: 'desc' }}
+        rowStyle={(swap) => teamRowStyle(swap.inProj ? teamRef(swap.inProj) : null)}
+      />
 
       <dl className="fpl-team-settings__basket-stats">
         <div title="Net spend across the basket (positive = costs bank)">
