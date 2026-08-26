@@ -100,6 +100,7 @@ export function parseLivePlayer(seasonId: string, row: Record<string, string>): 
     epNext: parseOptionalFloat(row.ep_next),
     canSelect: canSelectRaw == null || canSelectRaw === '' ? true : parseBoolField(canSelectRaw),
     costChangeStart: parseIntField(row.cost_change_start),
+    eventPoints: parseIntField(row.event_points),
   }
 }
 
@@ -176,8 +177,15 @@ export async function loadOfficialLiveSnapshot(options?: {
   const existing = await cache.liveMeta.get('current')
   if (!options?.force && isLiveFresh(existing, now)) {
     const cached = await readPersistedLiveSnapshot(existing)
-    // LT-3 needs cost_change_start; rows written before that field existed are unusable.
-    if (cached && livePlayersHaveCostChangeStart(cached.players)) return cached
+    // LT-3 needs cost_change_start; LT-5 sense-check needs event_points.
+    // Rows written before those fields existed should be refetched.
+    if (
+      cached &&
+      livePlayersHaveCostChangeStart(cached.players) &&
+      livePlayersHaveEventPoints(cached.players)
+    ) {
+      return cached
+    }
   }
 
   try {
@@ -203,10 +211,16 @@ function livePlayersHaveCostChangeStart(players: readonly FplLivePlayer[]): bool
   return players.every((player) => Number.isFinite(player.costChangeStart))
 }
 
+function livePlayersHaveEventPoints(players: readonly FplLivePlayer[]): boolean {
+  if (!players.length) return false
+  return players.every((player) => Number.isFinite(player.eventPoints))
+}
+
 function normalizeLivePlayersCostChange(players: FplLivePlayer[]): FplLivePlayer[] {
   return players.map((player) => ({
     ...player,
     costChangeStart: Number.isFinite(player.costChangeStart) ? player.costChangeStart : 0,
+    eventPoints: Number.isFinite(player.eventPoints) ? player.eventPoints : 0,
   }))
 }
 

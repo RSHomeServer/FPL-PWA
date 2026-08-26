@@ -476,6 +476,7 @@ function livePlayer(partial: {
     epNext: ePtsNext,
     canSelect: true,
     costChangeStart: 0,
+    eventPoints: 0,
   }
   return {
     code: partial.code,

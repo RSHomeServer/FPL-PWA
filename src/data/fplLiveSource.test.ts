@@ -64,6 +64,7 @@ const bootstrap = {
       chance_of_playing_next_round: null,
       ep_next: '4.0',
       can_select: true,
+      event_points: 6,
     },
   ],
 }
@@ -84,6 +85,7 @@ describe('official JSON mapping', () => {
     expect(raya?.status).toBe('a')
     expect(raya?.epNext).toBe(4)
     expect(raya?.canSelect).toBe(true)
+    expect(raya?.eventPoints).toBe(6)
     expect(raya?.chanceOfPlayingNextRound).toBeNull()
   })
 

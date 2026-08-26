@@ -54,7 +54,12 @@ type TransferOptState =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; result: SolveAllStrategiesResult; poolSize: number }
+  | {
+      kind: 'ready'
+      result: SolveAllStrategiesResult
+      poolSize: number
+      currentCodes: number[]
+    }
 
 function formatRefreshTime(ms: number): string {
   return new Date(ms).toLocaleString()
@@ -322,6 +327,7 @@ export function TeamSettingsPage() {
         kind: 'ready',
         result,
         poolSize: result.immediate.poolSize,
+        currentCodes: currentSquad.map((row) => row.code),
       })
     } catch (error) {
       const message =
@@ -566,33 +572,50 @@ export function TeamSettingsPage() {
               {transferOpt.message}
             </p>
           ) : null}
-          {transferOpt.kind === 'ready' ? (
+          {transferOpt.kind === 'ready' && liveSample.kind === 'ready' ? (
             <>
               <p className="fpl-explorer__meta">
                 Candidate pool {transferOpt.poolSize} players
                 {state.kind === 'success' && state.managerState
                   ? ` · ${state.managerState.freeTransfers} free transfer${state.managerState.freeTransfers === 1 ? '' : 's'} available`
                   : ''}
-                . Hover column headers for definitions. The highlighted basket maximises expected
-                points after hit penalties for that horizon.
+                . Each card is a full transfer basket (1+ moves). Hover headers for definitions.
+                Highlighted = best net EP after hits for that horizon.
               </p>
+              <TransferSenseCheckTable
+                projected={liveSample.projected}
+                currentCodes={transferOpt.currentCodes}
+                result={transferOpt.result}
+                sellPriceTenthsByCode={
+                  state.kind === 'success' && state.managerState
+                    ? state.managerState.sellPriceTenthsByCode
+                    : new Map()
+                }
+              />
               {TRANSFER_STRATEGIES.map((strategy) => {
                 const block = transferOpt.result[strategy.id]
+                const baskets = block.byTransferCount.filter((row) => row.transferCount > 0)
+                const bestMoving =
+                  baskets.reduce<TransferSolution | null>((best, row) => {
+                    if (!best || row.objectiveValue > best.objectiveValue) return row
+                    return best
+                  }, null)
                 return (
                   <div key={strategy.id} className="fpl-team-settings__xfer-block">
                     <h3 className="fpl-team-settings__xfer-heading">{strategy.label}</h3>
                     <p className="fpl-explorer__meta">{strategy.blurb}</p>
-                    {block.byTransferCount.length === 0 ? (
+                    {baskets.length === 0 ? (
                       <p className="fpl-team-settings__error" role="status">
-                        No feasible baskets for this horizon.
+                        No improving transfer baskets for this horizon (holding is best).
                       </p>
                     ) : (
                       <div className="fpl-team-settings__baskets">
-                        {block.byTransferCount.map((row) => (
+                        {baskets.map((row) => (
                           <TransferBasketCard
                             key={`${strategy.id}-${row.transferCount}`}
                             row={row}
-                            recommended={block.best?.transferCount === row.transferCount}
+                            recommended={bestMoving?.transferCount === row.transferCount}
+                            byCode={new Map(liveSample.projected.map((p) => [p.code, p]))}
                           />
                         ))}
                       </div>
@@ -621,7 +644,6 @@ function formatSignedPts(value: number, digits = 2): string {
 }
 
 function basketTitle(row: TransferSolution): string {
-  if (row.transferCount === 0) return 'Hold — make no transfers'
   const freeUsed = Math.min(row.transferCount, row.freeTransfers)
   const hitBit =
     row.hits > 0
@@ -634,12 +656,151 @@ function basketTitle(row: TransferSolution): string {
   return `${row.transferCount} transfer${row.transferCount === 1 ? '' : 's'}${freeBit}${hitBit}`
 }
 
+type SenseRow = {
+  code: number
+  player: LiveProjection
+  role: 'squad' | 'suggested'
+  sellTenths: number | null
+}
+
+function TransferSenseCheckTable({
+  projected,
+  currentCodes,
+  result,
+  sellPriceTenthsByCode,
+}: {
+  projected: readonly LiveProjection[]
+  currentCodes: readonly number[]
+  result: SolveAllStrategiesResult
+  sellPriceTenthsByCode: ReadonlyMap<number, number>
+}) {
+  const currentSet = new Set(currentCodes)
+  const suggested = new Set<number>()
+  for (const strategy of TRANSFER_STRATEGIES) {
+    for (const basket of result[strategy.id].byTransferCount) {
+      if (basket.transferCount === 0) continue
+      for (const inn of basket.ins) suggested.add(inn.code)
+    }
+  }
+
+  const byCode = new Map(projected.map((row) => [row.code, row]))
+  const rows: SenseRow[] = []
+  for (const code of currentCodes) {
+    const player = byCode.get(code)
+    if (!player) continue
+    rows.push({
+      code,
+      player,
+      role: 'squad',
+      sellTenths: sellPriceTenthsByCode.get(code) ?? player.nowCostTenths,
+    })
+  }
+  for (const code of [...suggested].sort((a, b) => a - b)) {
+    if (currentSet.has(code)) continue
+    const player = byCode.get(code)
+    if (!player) continue
+    rows.push({ code, player, role: 'suggested', sellTenths: null })
+  }
+
+  rows.sort((a, b) => {
+    if (a.role !== b.role) return a.role === 'squad' ? -1 : 1
+    return (
+      b.player.ePtsNext - a.player.ePtsNext ||
+      a.player.current.webName.localeCompare(b.player.current.webName)
+    )
+  })
+
+  return (
+    <section className="fpl-team-settings__sense" aria-label="Transfer sense-check">
+      <h3 className="fpl-team-settings__xfer-heading">Sense-check — squad & suggested buys</h3>
+      <p className="fpl-explorer__meta">
+        Your current 15 plus anyone recommended as a buy in any basket below. Last GW is bootstrap{' '}
+        <code>event_points</code>; Next EP is our in-season projection (not official ep_next).
+      </p>
+      <table className="fpl-team-settings__sell-table fpl-team-settings__swap-table">
+        <thead>
+          <tr>
+            <th scope="col" tabIndex={0}>
+              Player
+            </th>
+            <th scope="col" tabIndex={0}>
+              Pos
+            </th>
+            <th scope="col" tabIndex={0}>
+              Club
+            </th>
+            <th scope="col" tabIndex={0} title="In your squad or a suggested buy target">
+              Role
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                In squad = currently owned. Suggested buy = appears as an inbound transfer in at
+                least one basket.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Current list price">
+              Price
+            </th>
+            <th scope="col" tabIndex={0} title="Derived sell price if owned">
+              Sell
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Derived sell value used in the budget (owned players only).
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Points in the most recent gameweek">
+              Last GW
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Official bootstrap event_points for the latest / current gameweek.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Official FPL form">
+              Form
+            </th>
+            <th scope="col" tabIndex={0} title="Season total points so far">
+              Season
+            </th>
+            <th scope="col" tabIndex={0} title="Our expected points for the next GW">
+              Next EP
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                In-season Approach A expected points for the next gameweek (IS3).
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Sum of expected points over the next 5 GWs">
+              Next-5 EP
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Sum of next-X GW EP (default X=5) from the live projection engine.
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.code}>
+              <td>{row.player.current.webName}</td>
+              <td>{row.player.position}</td>
+              <td>{row.player.teamShortName || '—'}</td>
+              <td>{row.role === 'squad' ? 'In squad' : 'Suggested buy'}</td>
+              <td>{formatGbpFromTenths(row.player.nowCostTenths)}</td>
+              <td>{row.sellTenths == null ? '—' : formatGbpFromTenths(row.sellTenths)}</td>
+              <td>{row.player.current.eventPoints ?? 0}</td>
+              <td>{row.player.current.form.toFixed(1)}</td>
+              <td>{row.player.current.totalPoints}</td>
+              <td>{row.player.ePtsNext.toFixed(2)}</td>
+              <td>{row.player.ePtsHorizon.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
+}
+
 function TransferBasketCard({
   row,
   recommended,
+  byCode,
 }: {
   row: TransferSolution
   recommended: boolean
+  byCode: ReadonlyMap<number, LiveProjection>
 }) {
   const swaps = pairTransferSwaps(row.outs, row.ins)
   return (
@@ -653,7 +814,9 @@ function TransferBasketCard({
       <header className="fpl-team-settings__basket-head">
         <h4 className="fpl-team-settings__basket-title">
           {basketTitle(row)}
-          {recommended ? <span className="fpl-team-settings__basket-badge">Best for this horizon</span> : null}
+          {recommended ? (
+            <span className="fpl-team-settings__basket-badge">Best for this horizon</span>
+          ) : null}
         </h4>
         <p className="fpl-explorer__meta">
           Final squad stays within FPL rules (2/5/5/3, ≤3 per club) and is funded by bank + sell
@@ -661,47 +824,68 @@ function TransferBasketCard({
         </p>
       </header>
 
-      {row.transferCount === 0 ? (
-        <p className="fpl-explorer__meta">Keep the current 15. No cost change and no hit risk.</p>
-      ) : (
-        <table className="fpl-team-settings__sell-table fpl-team-settings__swap-table">
-          <thead>
-            <tr>
-              <th scope="col" title="Player you sell (sell price used for budget)">
-                Sell
-                <span className="fpl-explorer__col-hint" role="tooltip">
-                  Player leaving the squad. Price is the derived sell value used in the budget.
-                </span>
-              </th>
-              <th scope="col" title="Player you buy (current list price)">
-                Buy
-                <span className="fpl-explorer__col-hint" role="tooltip">
-                  Player joining the squad. Price is live now_cost.
-                </span>
-              </th>
-              <th scope="col" title="Position line for this swap">
-                Pos
-                <span className="fpl-explorer__col-hint" role="tooltip">
-                  Position pool (GK / DEF / MID / FWD). Swaps are paired by position when possible.
-                </span>
-              </th>
-              <th scope="col" title="Buy price minus sell price for this swap">
-                Cost Δ
-                <span className="fpl-explorer__col-hint" role="tooltip">
-                  Buy price − sell price for this pair. Positive means this swap spends bank.
-                </span>
-              </th>
-              <th scope="col" title="Expected-points change for this swap under the horizon">
-                EP Δ
-                <span className="fpl-explorer__col-hint" role="tooltip">
-                  Change in expected points for this pair under the chosen horizon (before hit
-                  penalty).
-                </span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {swaps.map((swap) => (
+      <table className="fpl-team-settings__sell-table fpl-team-settings__swap-table">
+        <thead>
+          <tr>
+            <th scope="col" tabIndex={0} title="Player you sell">
+              Sell
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Player leaving. Price shown is the derived sell value used in the budget.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Points in the most recent gameweek (seller)">
+              Last GW
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Seller’s official event_points from the latest / current gameweek.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Our next-GW expected points (seller)">
+              Next EP
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Seller’s in-season next-GW expected points (IS3).
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Player you buy">
+              Buy
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Player joining. Price shown is live now_cost.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Points in the most recent gameweek (buyer)">
+              Last GW
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Buyer’s official event_points from the latest / current gameweek.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Our next-GW expected points (buyer)">
+              Next EP
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Buyer’s in-season next-GW expected points (IS3).
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Position line for this swap">
+              Pos
+            </th>
+            <th scope="col" tabIndex={0} title="Buy price minus sell price for this swap">
+              Cost Δ
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Buy price − sell price. Positive means this swap spends bank.
+              </span>
+            </th>
+            <th scope="col" tabIndex={0} title="Horizon EP change for this swap">
+              Horizon EP Δ
+              <span className="fpl-explorer__col-hint" role="tooltip">
+                Change in expected points for this pair under the chosen horizon (before hit
+                penalty).
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {swaps.map((swap) => {
+            const outProj = byCode.get(swap.out.code)
+            const inProj = byCode.get(swap.inn.code)
+            return (
               <tr key={`${swap.out.code}-${swap.inn.code}`}>
                 <td>
                   {swap.out.webName}{' '}
@@ -709,23 +893,31 @@ function TransferBasketCard({
                     ({swap.out.teamShortName} · {formatGbpFromTenths(swap.out.priceTenths)})
                   </span>
                 </td>
+                <td>{outProj?.current.eventPoints ?? '—'}</td>
+                <td>{outProj ? outProj.ePtsNext.toFixed(2) : '—'}</td>
                 <td>
                   {swap.inn.webName}{' '}
                   <span className="fpl-team-settings__muted">
                     ({swap.inn.teamShortName} · {formatGbpFromTenths(swap.inn.priceTenths)})
                   </span>
                 </td>
-                <td>{swap.out.position === swap.inn.position ? swap.out.position : `${swap.out.position}→${swap.inn.position}`}</td>
+                <td>{inProj?.current.eventPoints ?? '—'}</td>
+                <td>{inProj ? inProj.ePtsNext.toFixed(2) : '—'}</td>
+                <td>
+                  {swap.out.position === swap.inn.position
+                    ? swap.out.position
+                    : `${swap.out.position}→${swap.inn.position}`}
+                </td>
                 <td>{formatSignedGbp(swap.costDeltaTenths)}</td>
                 <td>{formatSignedPts(swap.epDelta)}</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            )
+          })}
+        </tbody>
+      </table>
 
       <dl className="fpl-team-settings__basket-stats">
-        <div title="Sell proceeds minus buy spend across the whole basket (positive = bank rises)">
+        <div title="Net spend across the basket (positive = costs bank)">
           <dt>Net cost (basket)</dt>
           <dd>{formatSignedGbp(-row.costDeltaTenths)}</dd>
         </div>
@@ -735,11 +927,9 @@ function TransferBasketCard({
         </div>
         <div title="4 points per transfer beyond your free transfers">
           <dt>Hit penalty</dt>
-          <dd>
-            {row.hitCost > 0 ? `−${row.hitCost} pts (${row.hits}×4)` : 'None'}
-          </dd>
+          <dd>{row.hitCost > 0 ? `−${row.hitCost} pts (${row.hits}×4)` : 'None'}</dd>
         </div>
-        <div title="EP change after subtracting the hit penalty — the figure the solver maximises">
+        <div title="EP change after subtracting the hit penalty">
           <dt>Net EP after hits</dt>
           <dd>{formatSignedPts(row.netEpVsCurrent)}</dd>
         </div>
