@@ -15,33 +15,79 @@ import {
   liveAuditLine,
   liveStartsRate,
   projectLivePool,
+  reconcileCurrentSampleWithBootstrap,
   resolveAsOfEvent,
   resolveLiveFitness,
+  resolveLiveRecency,
 } from './liveProject'
 
 describe('IS1 adj_p90_live', () => {
   it('returns the GW0 prior when current minutes are 0', () => {
-    const blend = adjP90Live(null, 0, 3.9, 3.9, DEFAULT_LIVE_OPTIONS.shrinkage)
+    const blend = adjP90Live(null, 0, 3.9, 3.9, DEFAULT_LIVE_OPTIONS)
     expect(blend.wCur).toBe(0)
     expect(blend.adj).toBeCloseTo(3.9, 10)
   })
 
-  it('weights current raw p90 by shrinkageC(m_cur)', () => {
+  it('weights current raw p90 by faster live shrinkageC(m_cur)', () => {
     const mCur = 225
-    const w = shrinkageC(mCur, DEFAULT_LIVE_OPTIONS.shrinkage)
-    expect(w).toBeCloseTo(0.25, 10)
-    const blend = adjP90Live(6, mCur, 3.9, 3.9, DEFAULT_LIVE_OPTIONS.shrinkage)
-    expect(blend.wCur).toBeCloseTo(0.25, 10)
-    expect(blend.adj).toBeCloseTo(0.25 * 6 + 0.75 * 3.9, 10)
+    const w = shrinkageC(mCur, DEFAULT_LIVE_OPTIONS.currentShrinkage)
+    expect(w).toBeCloseTo(225 / 270, 10)
+    const blend = adjP90Live(6, mCur, 3.9, 3.9, DEFAULT_LIVE_OPTIONS)
+    expect(blend.wCur).toBeCloseTo(225 / 270, 10)
+    expect(blend.adj).toBeCloseTo((225 / 270) * 6 + (1 - 225 / 270) * 3.9, 10)
   })
 
   it('drops k_trans from the prior once m_cur >= 450', () => {
     const withK = 3.9 * 0.75
     const withoutK = 3.9
-    const low = adjP90Live(5, 200, withK, withoutK, DEFAULT_LIVE_OPTIONS.shrinkage)
+    const low = adjP90Live(5, 200, withK, withoutK, DEFAULT_LIVE_OPTIONS)
     expect(low.priorComponent).toBeCloseTo(withK, 10)
-    const high = adjP90Live(5, 450, withK, withoutK, DEFAULT_LIVE_OPTIONS.shrinkage)
+    const high = adjP90Live(5, 450, withK, withoutK, DEFAULT_LIVE_OPTIONS)
     expect(high.priorComponent).toBeCloseTo(withoutK, 10)
+  })
+
+  it('overlays last-GW and form when the season has started', () => {
+    const blend = adjP90Live(6, 90, 3.9, 3.9, DEFAULT_LIVE_OPTIONS, {
+      lastGwP90: 11,
+      lastGwMinutes: 90,
+      form: 11,
+    })
+    expect(blend.wLastGw).toBeGreaterThan(0)
+    expect(blend.wForm).toBeGreaterThan(0)
+    expect(blend.adj).toBeGreaterThan(blend.baseAdj)
+    expect(blend.adj).toBeGreaterThan(6)
+  })
+})
+
+describe('bootstrap reconcile when vaastav lags', () => {
+  it('prefers bootstrap totals and event_points when history is behind', () => {
+    const sample = {
+      minutes: 90,
+      points: 0,
+      startsRate: 1,
+      rawP90: 0 as number | null,
+      eventRates: null,
+      eventEp90: null,
+      appearanceGws: 1,
+      starts: 1,
+      lastGwPoints: 0,
+      lastGwMinutes: 90,
+      lastGwP90: 0 as number | null,
+      lastGwRound: 1,
+    }
+    const reconciled = reconcileCurrentSampleWithBootstrap(
+      sample,
+      { minutes: 180, totalPoints: 8, eventPoints: 8, form: 4 },
+      3,
+    )
+    expect(reconciled.minutes).toBe(180)
+    expect(reconciled.points).toBe(8)
+    expect(reconciled.rawP90).toBeCloseTo(4, 10)
+    expect(reconciled.lastGwPoints).toBe(8)
+    expect(reconciled.lastGwRound).toBe(2)
+
+    const recency = resolveLiveRecency(sample, { form: 4, eventPoints: 8 }, 3)
+    expect(recency.lastGwP90).toBe(8)
   })
 })
 
@@ -153,6 +199,38 @@ describe('IS3–IS5 projection', () => {
     expect(live.confidence.drivers.some((d) => d.includes('Current season'))).toBe(true)
   })
 
+  it('ranks a hot last-GW player above a cold one with the same prior', () => {
+    const fixtures = [fixture({ event: 2, teamHDifficulty: 2 })]
+    const hot = projectLivePool(
+      joinLivePool(
+        [livePlayer({ id: 44, code: 99, form: 11, eventPoints: 11 })],
+        [team()],
+        priorSeason(),
+        currentSeasonOneGw({ totalPoints: 11, minutes: 90 }),
+        2,
+      ),
+      fixtures,
+      baselines,
+      2,
+      { ...DEFAULT_LIVE_OPTIONS, horizon: 1 },
+    )[0]!
+    const cold = projectLivePool(
+      joinLivePool(
+        [livePlayer({ id: 44, code: 99, form: 1, eventPoints: 1 })],
+        [team()],
+        priorSeason(),
+        currentSeasonOneGw({ totalPoints: 1, minutes: 90 }),
+        2,
+      ),
+      fixtures,
+      baselines,
+      2,
+      { ...DEFAULT_LIVE_OPTIONS, horizon: 1 },
+    )[0]!
+    expect(hot.ePtsNext).toBeGreaterThan(cold.ePtsNext)
+    expect(hot.adjP90Live).toBeGreaterThan(cold.adjP90Live)
+  })
+
   it('horizon sum equals the sum of per-GW terms', () => {
     const fixtures = [1, 2, 3, 4, 5].map((event) =>
       fixture({ id: event, event, teamHDifficulty: 2 }),
@@ -248,6 +326,8 @@ function livePlayer(
     chanceOfPlayingNextRound: null,
     epNext: 2.1,
     canSelect: true,
+    eventPoints: 0,
+    costChangeStart: 0,
     ...partial,
   }
 }
@@ -356,6 +436,42 @@ function currentSeasonWithMinutes(): LoadedSeason {
         round: 2,
         minutes: 135,
         totalPoints: 7,
+        starts: 1,
+      }),
+    ],
+    hasMergedGw: true,
+    startsInferred: false,
+  }
+}
+
+function currentSeasonOneGw(args: {
+  playerId?: number
+  code?: number
+  totalPoints: number
+  minutes: number
+}): LoadedSeason {
+  const playerId = args.playerId ?? 44
+  const code = args.code ?? 99
+  return {
+    seasonId: '2026-27',
+    players: [
+      analysisPlayer({
+        id: playerId,
+        code,
+        seasonId: '2026-27',
+        minutes: args.minutes,
+        totalPoints: args.totalPoints,
+      }),
+    ],
+    teams: [team()],
+    fixtures: [],
+    performances: [
+      perf({
+        seasonId: '2026-27',
+        playerId,
+        round: 1,
+        minutes: args.minutes,
+        totalPoints: args.totalPoints,
         starts: 1,
       }),
     ],

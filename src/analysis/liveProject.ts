@@ -30,6 +30,7 @@ import {
   shrunkStartsRate,
   startsRate,
   type EventRates,
+  type ShrinkageSpec,
 } from './metrics'
 import type {
   FplFixture,
@@ -61,6 +62,21 @@ export const LIVE_DEFAULT_HORIZON = 5
 /** Apply k_trans to the prior rate only while current-season minutes are below this. */
 export const LIVE_K_TRANS_MINUTES = 450
 
+/** Faster trust in current-season raw p90 than GW0 prior shrinkage (900). */
+export const LIVE_CURRENT_SHRINKAGE: ShrinkageSpec = { kind: 'linear', minutesRef: 270 }
+
+/** Faster trust in current-season starts rate early in the season. */
+export const LIVE_STARTS_SMALL_SAMPLE = 180
+
+/** Max overlay weight for bootstrap FPL form in adj_p90_live. */
+export const LIVE_FORM_WEIGHT = 0.2
+
+/** Max overlay weight for last-GW p90 in adj_p90_live. */
+export const LIVE_LAST_GW_WEIGHT = 0.35
+
+/** Cap on combined last-GW + form overlay in adj_p90_live. */
+export const LIVE_RECENCY_OVERLAY_CAP = 0.5
+
 export type LiveFitnessMode = 'before_deadline' | 'mid_gw'
 
 export type LiveOptions = Gw0Options & {
@@ -68,12 +84,27 @@ export type LiveOptions = Gw0Options & {
   horizon: number
   /** Prefer this-round chance mid-GW; next-round before deadline. */
   fitnessMode: LiveFitnessMode
+  /** Shrinkage for current-season rate blend (faster than GW0 prior). */
+  currentShrinkage: ShrinkageSpec
+  /** Max weight for FPL form signal in adj_p90_live overlay. */
+  formWeight: number
+  /** Max weight for last-GW p90 in adj_p90_live overlay. */
+  lastGwWeight: number
+  /** Small-sample threshold for current-season starts blend. */
+  startsSmallSampleMinutes: number
+  /** Max combined weight for last-GW + form overlays. */
+  recencyOverlayCap: number
 }
 
 export const DEFAULT_LIVE_OPTIONS: LiveOptions = {
   ...DEFAULT_GW0_OPTIONS,
   horizon: LIVE_DEFAULT_HORIZON,
   fitnessMode: 'before_deadline',
+  currentShrinkage: LIVE_CURRENT_SHRINKAGE,
+  formWeight: LIVE_FORM_WEIGHT,
+  lastGwWeight: LIVE_LAST_GW_WEIGHT,
+  startsSmallSampleMinutes: LIVE_STARTS_SMALL_SAMPLE,
+  recencyOverlayCap: LIVE_RECENCY_OVERLAY_CAP,
 }
 
 /** Current-season sample used for IS1–IS2 (rounds strictly before `asOfEvent`). */
@@ -86,6 +117,27 @@ export type CurrentSeasonSample = {
   eventEp90: number | null
   appearanceGws: number
   starts: number
+  /** Most recent completed GW before asOfEvent. */
+  lastGwPoints: number
+  lastGwMinutes: number
+  lastGwP90: number | null
+  /** Round id of the last performance row in the sample (0 if none). */
+  lastGwRound: number
+}
+
+export type AdjP90LiveRecency = {
+  lastGwP90: number | null
+  lastGwMinutes: number
+  form: number
+}
+
+export type AdjP90LiveResult = {
+  adj: number
+  wCur: number
+  priorComponent: number
+  baseAdj: number
+  wLastGw: number
+  wForm: number
 }
 
 export type LiveJoinedPlayer = Gw0JoinedPlayer & {
@@ -100,6 +152,8 @@ export type LiveGwPointsAudit = GwPointsAudit & {
   wCur: number
   adjP90Gw0: number
   adjP90Live: number
+  wLastGw: number
+  wForm: number
   startsRateCur: number
   startsRatePrior: number
   startsLive: number
@@ -153,6 +207,10 @@ export function aggregateCurrentSeasonSample(
     eventEp90: null,
     appearanceGws: 0,
     starts: 0,
+    lastGwPoints: 0,
+    lastGwMinutes: 0,
+    lastGwP90: null,
+    lastGwRound: 0,
   }
   if (code <= 0 || asOfEvent <= 1) return empty
 
@@ -188,12 +246,54 @@ export function joinLivePool(
           eventEp90: null,
           appearanceGws: 0,
           starts: 0,
+          lastGwPoints: 0,
+          lastGwMinutes: 0,
+          lastGwP90: null,
+          lastGwRound: 0,
         },
   }))
 }
 
 /**
- * IS1 — blend current-season raw p90 with prior adj_p90_gw0.
+ * When vaastav current-season history lags the finished GW (common early season),
+ * prefer bootstrap season totals + event_points so live EP matches what the UI shows.
+ */
+export function reconcileCurrentSampleWithBootstrap(
+  sample: CurrentSeasonSample,
+  player: Pick<FplLivePlayer, 'minutes' | 'totalPoints' | 'eventPoints' | 'form'>,
+  asOfEvent: number,
+): CurrentSeasonSample {
+  const finishedGw = Math.max(0, Math.floor(asOfEvent) - 1)
+  const historyLagging =
+    finishedGw > 0 && (sample.lastGwRound < finishedGw || player.minutes > sample.minutes + 15)
+  if (!historyLagging) return sample
+
+  const minutes = Math.max(sample.minutes, player.minutes)
+  const points = Math.max(sample.points, player.totalPoints)
+  const lastGwPoints = player.eventPoints
+  // Bootstrap does not expose last-GW minutes; assume a start when points or minutes exist.
+  const lastGwMinutes =
+    finishedGw > 0 && (lastGwPoints > 0 || player.minutes > sample.minutes)
+      ? 90
+      : sample.lastGwMinutes
+  const lastGwP90 =
+    lastGwMinutes > 0 ? (lastGwPoints / lastGwMinutes) * 90 : sample.lastGwP90
+
+  return {
+    ...sample,
+    minutes,
+    points,
+    rawP90: rawP90(points, minutes),
+    lastGwPoints,
+    lastGwMinutes,
+    lastGwP90,
+    lastGwRound: Math.max(sample.lastGwRound, finishedGw),
+  }
+}
+
+/**
+ * IS1 — blend current-season raw p90 with prior adj_p90_gw0, then overlay last-GW
+ * and FPL form when the season has started.
  * `k_trans` hits the prior component only when `m_cur < 450`.
  */
 export function adjP90Live(
@@ -201,17 +301,57 @@ export function adjP90Live(
   mCur: number,
   adjGw0WithKTrans: number,
   adjGw0WithoutKTrans: number,
-  shrinkage: LiveOptions['shrinkage'],
-): { adj: number; wCur: number; priorComponent: number } {
-  const wCur = rawP90Cur == null ? 0 : shrinkageC(mCur, shrinkage)
+  options: Pick<
+    LiveOptions,
+    'shrinkage' | 'currentShrinkage' | 'formWeight' | 'lastGwWeight' | 'recencyOverlayCap'
+  >,
+  recency?: AdjP90LiveRecency,
+): AdjP90LiveResult {
+  const currentShrinkage = options.currentShrinkage ?? options.shrinkage
+  const wCur = rawP90Cur == null ? 0 : shrinkageC(mCur, currentShrinkage)
   const priorComponent = mCur < LIVE_K_TRANS_MINUTES ? adjGw0WithKTrans : adjGw0WithoutKTrans
-  if (rawP90Cur == null || wCur <= 0) {
-    return { adj: priorComponent, wCur: 0, priorComponent }
+  let baseAdj = priorComponent
+  if (rawP90Cur != null && wCur > 0) {
+    baseAdj = wCur * rawP90Cur + (1 - wCur) * priorComponent
   }
+
+  let wLastGw = 0
+  let wForm = 0
+  if (recency) {
+    if (recency.lastGwP90 != null && recency.lastGwP90 > 0 && recency.lastGwMinutes > 0) {
+      wLastGw =
+        options.lastGwWeight *
+        shrinkageC(recency.lastGwMinutes, { kind: 'linear', minutesRef: 90 })
+    }
+    if (recency.form > 0) {
+      wForm = options.formWeight * Math.min(1, recency.form / 6)
+    }
+  }
+
+  const overlayCap = options.recencyOverlayCap ?? LIVE_RECENCY_OVERLAY_CAP
+  const overlayWeight = Math.min(overlayCap, wLastGw + wForm)
+  if (overlayWeight <= 0 || !recency) {
+    return { adj: baseAdj, wCur, priorComponent, baseAdj, wLastGw: 0, wForm: 0 }
+  }
+
+  let weightedRate = 0
+  let weightSum = 0
+  if (wLastGw > 0 && recency.lastGwP90 != null) {
+    weightedRate += wLastGw * recency.lastGwP90
+    weightSum += wLastGw
+  }
+  if (wForm > 0) {
+    weightedRate += wForm * recency.form
+    weightSum += wForm
+  }
+  const overlayRate = weightSum > 0 ? weightedRate / weightSum : baseAdj
   return {
-    adj: wCur * rawP90Cur + (1 - wCur) * priorComponent,
+    adj: (1 - overlayWeight) * baseAdj + overlayWeight * overlayRate,
     wCur,
     priorComponent,
+    baseAdj,
+    wLastGw,
+    wForm,
   }
 }
 
@@ -223,8 +363,33 @@ export function liveStartsRate(
   startsCur: number,
   mCur: number,
   priorStartsShrunk: number,
+  smallSampleMinutes = LIVE_STARTS_SMALL_SAMPLE,
 ): number {
-  return shrunkStartsRate(startsCur, priorStartsShrunk, mCur)
+  return shrunkStartsRate(startsCur, priorStartsShrunk, mCur, smallSampleMinutes)
+}
+
+/** Last-GW + bootstrap form signals for the IS1 recency overlay. */
+export function resolveLiveRecency(
+  sample: CurrentSeasonSample,
+  player: Pick<FplLivePlayer, 'form' | 'eventPoints'>,
+  asOfEvent?: number,
+): AdjP90LiveRecency {
+  const finishedGw = asOfEvent != null ? Math.max(0, Math.floor(asOfEvent) - 1) : 0
+  const sampleStale = finishedGw > 0 && sample.lastGwRound < finishedGw
+
+  let lastGwMinutes = sample.lastGwMinutes
+  let lastGwP90 = sample.lastGwP90
+  if (sampleStale || lastGwMinutes <= 0) {
+    if (player.eventPoints > 0 || sampleStale) {
+      lastGwMinutes = 90
+      lastGwP90 = player.eventPoints
+    }
+  }
+  return {
+    lastGwP90,
+    lastGwMinutes,
+    form: player.form,
+  }
 }
 
 /** Mid-GW prefers this-round chance; before deadline prefers next-round. */
@@ -277,6 +442,8 @@ export function liveAuditLine(audit: LiveGwPointsAudit): string {
     `m_cur=${Math.round(audit.currentMinutes)}`,
     `raw_p90_cur=${rawCur}`,
     `w_cur=${audit.wCur.toFixed(2)}`,
+    `w_last_gw=${audit.wLastGw.toFixed(2)}`,
+    `w_form=${audit.wForm.toFixed(2)}`,
     `adj_gw0=${audit.adjP90Gw0.toFixed(2)}`,
     `adj_live=${audit.adjP90Live.toFixed(2)}`,
     `starts_cur=${audit.startsRateCur.toFixed(2)}`,
@@ -303,24 +470,42 @@ function projectLiveOne(
   const adjWithoutK = adjP90(rawPrior, baselineP90, priorMinutes, options.shrinkage)
   const adjWithK = adjP90Gw0(adjWithoutK, transferred, options.kTrans)
 
-  const sample = player.currentSample
+  const sample = reconcileCurrentSampleWithBootstrap(
+    player.currentSample,
+    player.current,
+    asOfEvent,
+  )
   const mCur = sample.minutes
-  const liveRate = adjP90Live(sample.rawP90, mCur, adjWithK, adjWithoutK, options.shrinkage)
+  const recency = resolveLiveRecency(sample, player.current, asOfEvent)
+  const liveRate = adjP90Live(
+    sample.rawP90,
+    mCur,
+    adjWithK,
+    adjWithoutK,
+    options,
+    recency,
+  )
 
   const priorStarts = player.prior?.startsRate ?? 0
   const priorStartsShrunk = shrunkStartsRate(priorStarts, baselines.starts[pool], priorMinutes)
-  const startsLive = liveStartsRate(sample.startsRate, mCur, priorStartsShrunk)
+  const startsLive = liveStartsRate(
+    sample.startsRate,
+    mCur,
+    priorStartsShrunk,
+    options.startsSmallSampleMinutes,
+  )
 
+  const reconciledPlayer: LiveJoinedPlayer = { ...player, currentSample: sample }
   const evidence = options.roleEvidenceByCode?.get(player.code) ?? null
   const mSem = evidence ? mSemForPlayer(evidence) : options.mSem
   const mFitness = resolveLiveFitness(player, evidence, options.fitnessMode)
-  const eventRate = mixLiveEventRate(player, baselines.eventEp90[pool], options)
+  const eventRate = mixLiveEventRate(reconciledPlayer, baselines.eventEp90[pool], options)
 
   const horizon = Math.max(1, Math.floor(options.horizon))
   const horizonGws = Array.from({ length: horizon }, (_, i) => asOfEvent + i)
   const auditByGw: LiveGwPointsAudit[] = []
   for (const gw of horizonGws) {
-    const audit = projectLiveGw(player, {
+    const audit = projectLiveGw(reconciledPlayer, {
       gw,
       position,
       adjLive: liveRate.adj,
@@ -334,6 +519,8 @@ function projectLiveOne(
       mCur,
       rawP90Cur: sample.rawP90,
       wCur: liveRate.wCur,
+      wLastGw: liveRate.wLastGw,
+      wForm: liveRate.wForm,
       priorStarts,
       startsCur: sample.startsRate,
       startsLive,
@@ -356,10 +543,10 @@ function projectLiveOne(
   const ePtsHorizon = ePtsByGw.reduce((sum, value) => sum + value, 0)
   const ePtsNext = next?.ePts ?? 0
   const price = player.current.nowCostTenths / 10
-  const confidence = liveConfidence(player, mFitness, mCur, { ...options, mSem })
+  const confidence = liveConfidence(reconciledPlayer, mFitness, mCur, { ...options, mSem })
 
   return {
-    ...player,
+    ...reconciledPlayer,
     position,
     nowCostTenths: player.current.nowCostTenths,
     asOfEvent,
@@ -399,6 +586,8 @@ function projectLiveGw(
     mCur: number
     rawP90Cur: number | null
     wCur: number
+    wLastGw: number
+    wForm: number
     priorStarts: number
     startsCur: number
     startsLive: number
@@ -478,6 +667,8 @@ function projectLiveGw(
     wCur: args.wCur,
     adjP90Gw0: args.adjGw0,
     adjP90Live: args.adjLive,
+    wLastGw: args.wLastGw,
+    wForm: args.wForm,
     startsRateCur: args.startsCur,
     startsRatePrior: args.priorStarts,
     startsLive: args.startsLive,
@@ -510,13 +701,14 @@ function mixLiveEventRate(
   }
 
   const rawCur = sample.eventEp90
-  const wCur = rawCur == null ? 0 : shrinkageC(mCur, options.shrinkage)
+  const currentShrinkage = options.currentShrinkage ?? options.shrinkage
+  const wCur = rawCur == null ? 0 : shrinkageC(mCur, currentShrinkage)
   if (rawCur == null || wCur <= 0) return priorShrunk
   return wCur * rawCur + (1 - wCur) * priorShrunk
 }
 
 export function liveConfidence(
-  player: Pick<LiveJoinedPlayer, 'newToPl' | 'club' | 'prior' | 'currentSample'>,
+  player: Pick<LiveJoinedPlayer, 'newToPl' | 'club' | 'prior' | 'currentSample' | 'current'>,
   mFitness: number,
   mCur: number,
   options: Pick<LiveOptions, 'shrinkage' | 'horizonFactor' | 'mSem'> = DEFAULT_LIVE_OPTIONS,
@@ -536,6 +728,12 @@ export function liveConfidence(
     drivers.push(
       `Current season: ${Math.round(mCur)} min, ${starts} start${starts === 1 ? '' : 's'}`,
     )
+    if (player.currentSample.lastGwPoints > 0) {
+      drivers.push(`Last GW: ${player.currentSample.lastGwPoints} pts`)
+    }
+    if (player.current.form > 0) {
+      drivers.push(`Form: ${player.current.form.toFixed(1)}`)
+    }
   } else if (player.newToPl) {
     drivers.push('New to PL (no ≥90 prior minutes); prior-only / baseline')
   } else {
@@ -592,6 +790,7 @@ function summariseCurrentRows(
   let saves = 0
   let goalsConceded = 0
   let bonus = 0
+  let lastGwRow: FplPerformance | null = null
   for (const row of rows) {
     minutes += row.minutes
     points += row.totalPoints
@@ -603,7 +802,14 @@ function summariseCurrentRows(
     saves += row.saves
     goalsConceded += row.goalsConceded
     bonus += row.bonus
+    if (!lastGwRow || row.round > lastGwRow.round) {
+      lastGwRow = row
+    }
   }
+  const lastGwMinutes = lastGwRow?.minutes ?? 0
+  const lastGwPoints = lastGwRow?.totalPoints ?? 0
+  const lastGwP90 =
+    lastGwMinutes > 0 ? (lastGwPoints / lastGwMinutes) * 90 : null
   const events = eventRatesPer90(minutes, {
     goals,
     assists,
@@ -621,6 +827,10 @@ function summariseCurrentRows(
     eventEp90: events ? eventEp90(position, events) : null,
     appearanceGws: appearanceRounds.size,
     starts,
+    lastGwPoints,
+    lastGwMinutes,
+    lastGwP90,
+    lastGwRound: lastGwRow?.round ?? 0,
   }
 }
 

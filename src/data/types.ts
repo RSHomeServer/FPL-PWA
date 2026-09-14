@@ -135,6 +135,11 @@ export type FplLivePlayer = FplPlayer & {
    * reconstruction is `nowCostTenths - costChangeStart` (discovery §2.4).
    */
   costChangeStart: number
+  /**
+   * Bootstrap `event_points` — points in the most recent / current gameweek
+   * (0 before GW1 finishes). Useful for transfer sense-checks.
+   */
+  eventPoints: number
 }
 
 export type FplLiveEvent = {
