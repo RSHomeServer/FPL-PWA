@@ -275,6 +275,14 @@ w = \text{shrinkageC}(m_{cur}, \text{spec}) \quad \text{(default spec: linear/90
 \text{adj\_p90\_live} = w \cdot \text{raw\_p90\_cur} + (1-w) \cdot \text{adj\_p90\_gw0}
 \]
 
+**Early-season recency (once the season has started):**
+
+- Use **faster** current-season shrinkage (`linear/270` default) than GW0 prior (`linear/900`).
+- Overlay **last-GW p90** (from vaastav or bootstrap `event_points`) up to weight 0.35 after 90 minutes.
+- Overlay **FPL form** (bootstrap) up to weight 0.2 when form ≥ 6.
+- Combined overlay capped at 0.5 so priors are not fully discarded after one GW.
+- **When vaastav history lags the finished GW** (common early season), reconcile current-season minutes/points and last-GW from bootstrap so EP matches the UI’s last-GW column.
+
 Same-club vs transfer discount (`adjP90Gw0` / `k_trans`) applies to the **prior** component only when current-season minutes \(< 450\).
 
 ### 3.4 Expected minutes (IS2)
@@ -283,7 +291,7 @@ Same-club vs transfer discount (`adjP90Gw0` / `k_trans`) applies to the **prior*
 E[\text{min}] = \text{clamp}\big(0,\ 90,\ \text{blend}(\text{starts\_rate\_cur},\ \text{starts\_rate\_prior}) \times 90 \times m_{sem} \times m_{fitness}\big)
 \]
 
-Use `shrunkStartsRate` from `metrics.ts` when current-season sample \(< 450\) minutes.
+Use `shrunkStartsRate` from `metrics.ts` when current-season sample \(< 180\) minutes (live default; GW0 uses 450).
 
 Double/blank GWs: same as GW0 — sum per fixture from `fixtures` (max 180).
 

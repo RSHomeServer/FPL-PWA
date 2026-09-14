@@ -9,6 +9,8 @@ const EXPLORERS = [
   { to: '/compare', label: 'Compare', hint: 'Which of these two?' },
   { to: '/fixtures', label: 'Fixtures', hint: 'What is coming?' },
   { to: '/teams', label: 'Teams', hint: 'Who to target?' },
+  { to: '/optimiser', label: 'Optimiser', hint: 'Transfer baskets for your squad' },
+  { to: '/settings', label: 'Settings', hint: 'Entry ID and optimiser formula' },
   { to: '/gw0', label: 'GW0 visuals', hint: 'Pitch, charts, and decision UI' },
   { to: '/gw0-data', label: 'GW0 data', hint: 'Calculations, tables, and controls' },
   { to: '/perfect-team', label: 'Perfect team', hint: 'Hindsight best squads by GW and season' },

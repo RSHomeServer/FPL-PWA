@@ -1227,3 +1227,105 @@
   margin: 0.15rem 0 0;
   font-weight: 600;
 }
+
+.fpl-settings__section {
+  padding: var(--space-4, 1rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.375rem);
+  background: color-mix(in srgb, var(--fpl-ink) 35%, transparent);
+}
+
+.fpl-settings__section + .fpl-settings__section {
+  margin-top: var(--space-2, 0.5rem);
+}
+
+.fpl-settings__section-title {
+  margin: 0 0 var(--space-3, 0.75rem);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.fpl-settings__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3, 0.75rem);
+  margin: var(--space-4, 1rem) 0 0;
+}
+
+.fpl-settings__summary > div {
+  padding: var(--space-3, 0.75rem);
+  border-radius: var(--radius-sm, 0.25rem);
+  background: color-mix(in srgb, var(--fpl-ink) 50%, transparent);
+}
+
+.fpl-settings__summary dt {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fpl-settings__summary dd {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.fpl-settings__error {
+  margin: var(--space-3, 0.75rem) 0 0;
+  color: #ffb4b4;
+}
+
+.fpl-settings__banner {
+  margin: 0;
+  padding: var(--space-3, 0.75rem);
+  border-radius: var(--radius-md, 0.375rem);
+  background: color-mix(in srgb, var(--fpl-lime) 12%, var(--fpl-ink));
+  border: 1px solid color-mix(in srgb, var(--fpl-lime) 28%, transparent);
+}
+
+.fpl-settings__saved {
+  margin: var(--space-3, 0.75rem) 0 0;
+  color: var(--fpl-lime);
+}
+
+.fpl-settings__actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.fpl-settings__form .fpl-explorer__field :is(input) {
+  width: min(100%, 16rem);
+}
+
+.fpl-settings__field-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2, 0.5rem);
+  align-items: baseline;
+}
+
+.fpl-settings__field-value {
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 0.875rem;
+  color: var(--fpl-lime);
+}
+
+.fpl-settings__range {
+  width: 100%;
+  margin: var(--space-2, 0.5rem) 0;
+  accent-color: var(--fpl-lime);
+}
+
+.fpl-settings__inline-link {
+  align-self: center;
+  color: var(--fpl-lime);
+  font-size: 0.9375rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.fpl-settings__inline-link:hover {
+  color: color-mix(in srgb, var(--fpl-lime) 80%, white);
+}
+

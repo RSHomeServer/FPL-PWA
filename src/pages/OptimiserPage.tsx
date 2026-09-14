@@ -1,5 +1,6 @@
 import { Button, Label, Spinner, Stack, TextField } from '@songara/pwa-base/ui'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { EP_NEXT_DISCLAIMER } from '../analysis/gw0EpNext'
 import { buildLiveProjectionSample, GW0_PRIOR_SEASON_ID, LIVE_CURRENT_SEASON_ID } from '../analysis/liveBuild'
 import type { LiveProjection } from '../analysis/liveProject'
@@ -12,6 +13,7 @@ import {
   type TransferSwap,
 } from '../analysis/transferSquad'
 import { PlayerLabel, TeamLabel } from '../components/FplMedia'
+import { mergeOptimiserLiveOptions } from '../data/appSettings'
 import { getFplCacheDb } from '../data/db'
 import { loadOfficialLiveSnapshot } from '../data/fplLiveSource'
 import { loadSeasonCatalog, loadSeasonSnapshot } from '../data/ingest'
@@ -162,13 +164,11 @@ const LIVE_COLUMNS: DataTableColumn<LiveProjection>[] = [
   },
 ]
 
-export function TeamSettingsPage() {
-  const [entryIdInput, setEntryIdInput] = useState('')
+export function OptimiserPage() {
+  const [configuredEntryId, setConfiguredEntryId] = useState<number | null>(null)
   const [state, setState] = useState<ViewState>({ kind: 'idle' })
   const [liveSample, setLiveSample] = useState<LiveSampleState>({ kind: 'idle' })
   const [transferOpt, setTransferOpt] = useState<TransferOptState>({ kind: 'idle' })
-
-  const entryId = useMemo(() => Number.parseInt(entryIdInput.trim(), 10), [entryIdInput])
 
   const loadLiveSample = useCallback(async (manager: ManagerSnapshot | null) => {
     setLiveSample({ kind: 'loading' })
@@ -191,6 +191,7 @@ export function TeamSettingsPage() {
         current: currentSnap,
         manager,
         topN: 15,
+        options: mergeOptimiserLiveOptions(),
       })
       setLiveSample({
         kind: 'ready',
@@ -218,13 +219,15 @@ export function TeamSettingsPage() {
   useEffect(() => {
     void (async () => {
       const configured = await readConfiguredEntryId()
+      setConfiguredEntryId(configured)
       if (!configured) {
+        setState({ kind: 'idle' })
         void loadLiveSample(null)
         return
       }
-      setEntryIdInput(String(configured))
       const loaded = await loadUserState(configured, { triggerBackgroundRefresh: true })
       if (!loaded) {
+        setState({ kind: 'idle' })
         void loadLiveSample(null)
         return
       }
@@ -232,41 +235,21 @@ export function TeamSettingsPage() {
     })()
   }, [applySuccess, loadLiveSample])
 
-  async function loadTeam() {
-    if (!Number.isFinite(entryId) || entryId <= 0) {
-      setState({ kind: 'error', message: 'Enter a positive FPL entry ID (from your team URL).' })
-      return
-    }
-
-    setState({ kind: 'loading' })
-    try {
-      const snapshot = await refreshUserState(entryId, { force: true })
-      await applySuccess(snapshot, snapshot.fetchedAt, false)
-    } catch (error) {
-      const cached = await loadCachedUserStateAfterFailure(entryId)
-      if (cached) {
-        await applySuccess(cached.snapshot, cached.lastRefreshAt, true)
-        return
-      }
-      const message =
-        error instanceof Error ? error.message : 'Failed to load manager data.'
-      setState({ kind: 'error', message })
-      void loadLiveSample(null)
-    }
-  }
-
   async function refreshTeam() {
-    if (!Number.isFinite(entryId) || entryId <= 0) {
-      setState({ kind: 'error', message: 'Configure an entry ID before refreshing.' })
+    if (!configuredEntryId) {
+      setState({
+        kind: 'error',
+        message: 'Configure your entry ID on Settings before refreshing.',
+      })
       return
     }
 
     setState({ kind: 'loading' })
     try {
-      const snapshot = await refreshUserState(entryId, { force: true })
+      const snapshot = await refreshUserState(configuredEntryId, { force: true })
       await applySuccess(snapshot, snapshot.fetchedAt, false)
     } catch (error) {
-      const cached = await loadCachedUserStateAfterFailure(entryId)
+      const cached = await loadCachedUserStateAfterFailure(configuredEntryId)
       if (cached) {
         await applySuccess(cached.snapshot, cached.lastRefreshAt, true)
         return
@@ -277,7 +260,7 @@ export function TeamSettingsPage() {
     }
   }
 
-  const hasConfiguredEntry = state.kind === 'success' || (Number.isFinite(entryId) && entryId > 0)
+  const hasConfiguredEntry = state.kind === 'success'
   const sellRows =
     state.kind === 'success' && state.managerState
       ? [...state.managerState.sellPrices.values()].sort((a, b) => a.elementId - b.elementId)
@@ -342,46 +325,29 @@ export function TeamSettingsPage() {
 
   return (
     <ExplorerScreen
-      kicker="My team"
-      title="Entry settings"
-      question="Load your FPL entry by numeric ID. Squad data is cached locally and refreshed every 30 minutes (or on demand)."
+      kicker="Optimiser"
+      title="Transfer optimiser"
+      question="Review live projections and find multi-transfer baskets for your squad. Configure your entry and formula weights on Settings."
       hideSeasonBar
     >
       <Stack gap="md" className="fpl-team-settings">
-        <Stack gap="sm" className="fpl-team-settings__form">
-          <Label className="fpl-explorer__field" htmlFor="fpl-entry-id">
-            FPL entry ID
-            <TextField
-              id="fpl-entry-id"
-              inputMode="numeric"
-              value={entryIdInput}
-              onChange={(event) => setEntryIdInput(event.target.value)}
-              placeholder="e.g. 8585919"
-              autoComplete="off"
-            />
-          </Label>
-          <p className="fpl-explorer__meta">
-            Find this in your team URL: fantasy.premierleague.com/entry/<strong>1234567</strong>/event/…
+        {!configuredEntryId ? (
+          <p className="fpl-settings__banner">
+            No entry configured yet. Set and verify your FPL entry ID on{' '}
+            <Link to="/settings">Settings</Link> to load your squad here.
           </p>
-          <Stack gap="sm" className="fpl-team-settings__actions">
-            <Button
-              variant="primary"
-              onClick={() => void loadTeam()}
-              disabled={state.kind === 'loading'}
-            >
-              {state.kind === 'loading' ? 'Loading…' : 'Load team'}
+        ) : null}
+
+        {configuredEntryId && hasConfiguredEntry ? (
+          <Stack direction="row" gap="sm" className="fpl-team-settings__actions">
+            <Button variant="secondary" onClick={() => void refreshTeam()}>
+              Refresh squad
             </Button>
-            {hasConfiguredEntry ? (
-              <Button
-                variant="secondary"
-                onClick={() => void refreshTeam()}
-                disabled={state.kind === 'loading'}
-              >
-                Refresh squad
-              </Button>
-            ) : null}
+            <Link to="/settings" className="fpl-settings__inline-link">
+              Entry & formula settings
+            </Link>
           </Stack>
-        </Stack>
+        ) : null}
 
         {state.kind === 'loading' ? (
           <Spinner label="Fetching entry, picks, history, and transfers via /fpl-api…" />
