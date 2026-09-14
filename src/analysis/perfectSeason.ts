@@ -1,10 +1,18 @@
 import { latestPlayedRound, maxRound } from '../data/queries'
 import type { SeasonSnapshot } from '../data/types'
-import { BUDGET_TENTHS, SQUAD_POSITIONS, type FormationId } from './gw0Squad'
+import {
+  BUDGET_TENTHS,
+  SQUAD_POSITIONS,
+  SquadInfeasibleError,
+  formatPinInfeasibility,
+  type FormationId,
+  type SquadPins,
+} from './gw0Squad'
 import { positionPool, type PositionPool } from './metrics'
 import {
   bestLineupAcrossFormations,
   buildHindsightPool,
+  diagnoseHindsightPins,
   isLegalSquadCodes,
   openingCostByPlayer,
   orderBenchByPoints,
@@ -59,15 +67,22 @@ export type DynamicSearchOptions = {
   beamWidth?: number
   maxStrategies?: number
   maxTransferCandidates?: number
+  /** When false (default), skip hindsight TC/BB; totals are transfer/hit path only. */
+  useChips?: boolean
+  lockedCodes?: readonly number[]
+  excludedCodes?: readonly number[]
   /** Force all strategies to start from this squad (e.g. GW0 model short-term). */
   lockedOpening?: readonly HindsightPlayer[]
   onProgress?: (progress: { gw: number; lastGw: number; message: string }) => void
 }
 
-const DEFAULT_OPTIONS: Required<Omit<DynamicSearchOptions, 'lockedOpening' | 'onProgress'>> = {
+const DEFAULT_OPTIONS: Required<
+  Omit<DynamicSearchOptions, 'lockedOpening' | 'onProgress' | 'lockedCodes' | 'excludedCodes'>
+> = {
   beamWidth: 40,
   maxStrategies: 5,
   maxTransferCandidates: 12,
+  useChips: false,
 }
 
 type SearchState = {
@@ -105,6 +120,12 @@ export async function searchDynamicStrategies(
   options: DynamicSearchOptions = {},
 ): Promise<DynamicStrategy[]> {
   const opts = { ...DEFAULT_OPTIONS, ...options }
+  const pins: SquadPins = {
+    lockedCodes: options.lockedCodes ?? [],
+    excludedCodes: options.excludedCodes ?? [],
+  }
+  const lockedSet = new Set(uniquePinCodes(pins.lockedCodes))
+  const excludedSet = new Set(uniquePinCodes(pins.excludedCodes))
   const lastGw = latestPlayedRound(snapshot.performances) || maxRound(snapshot.performances, snapshot.fixtures)
   if (lastGw < 1) return []
 
@@ -112,11 +133,36 @@ export async function searchDynamicStrategies(
   const index = buildSeasonIndex(snapshot, lastGw)
   await yieldToUi()
 
+  const openingViolations = diagnoseHindsightPins([...index.byCode.values()], pins)
+  if (openingViolations.length > 0) {
+    throw new SquadInfeasibleError(formatPinInfeasibility(openingViolations), openingViolations)
+  }
+
   const seedSquads = opts.lockedOpening?.length
     ? [opts.lockedOpening.map((player) => player)]
-    : await buildOpeningSeeds(snapshot, lastGw, opts.onProgress)
+    : await buildOpeningSeeds(snapshot, lastGw, pins, opts.onProgress)
 
-  let beam: SearchState[] = seedSquads.map((openingSquad) => ({
+  const filteredSeeds = seedSquads.filter((squad) => squadRespectsPins(squad, lockedSet, excludedSet))
+  if (filteredSeeds.length === 0) {
+    throw new SquadInfeasibleError(
+      formatPinInfeasibility([
+        {
+          code: 'infeasible',
+          detail: 'No opening seed includes every locked player while respecting excludes.',
+          lockedCodes: [...lockedSet],
+        },
+      ]),
+      [
+        {
+          code: 'infeasible',
+          detail: 'No opening seed includes every locked player while respecting excludes.',
+          lockedCodes: [...lockedSet],
+        },
+      ],
+    )
+  }
+
+  let beam: SearchState[] = filteredSeeds.map((openingSquad) => ({
     key: squadKey(openingSquad),
     openingSquad,
     openingKey: squadKey(openingSquad),
@@ -153,10 +199,13 @@ export async function searchDynamicStrategies(
         index.openingCosts,
         nextPoints,
         opts.maxTransferCandidates,
+        lockedSet,
+        excludedSet,
       )
       for (const move of moves) {
         const nextSquad = applyTransfer(afterGw.squad, move.out, move.in)
         if (!isLegalSquadCodes(nextSquad, index.byCode)) continue
+        if (!squadRespectsPins(nextSquad, lockedSet, excludedSet)) continue
         expanded.push({
           key: `${afterGw.key}|t${gw}:${move.out.code}->${move.in.code}`,
           openingSquad: afterGw.openingSquad,
@@ -177,21 +226,44 @@ export async function searchDynamicStrategies(
 
   opts.onProgress?.({ gw: lastGw, lastGw, message: 'Building week plans…' })
   const finished = beam
-    .map((state, indexNum) => buildStrategyFromState(state, lastGw, index, indexNum))
+    .map((state, indexNum) => buildStrategyFromState(state, lastGw, index, indexNum, opts.useChips))
     .sort((a, b) => b.totalPoints - a.totalPoints)
 
   return pickDiverseStrategies(finished, opts.maxStrategies)
 }
 
+function squadRespectsPins(
+  squad: readonly HindsightPlayer[],
+  locked: ReadonlySet<number>,
+  excluded: ReadonlySet<number>,
+): boolean {
+  const codes = new Set(squad.map((player) => player.code))
+  for (const code of locked) {
+    if (!codes.has(code)) return false
+  }
+  for (const player of squad) {
+    if (excluded.has(player.code)) return false
+  }
+  return true
+}
+
+function uniquePinCodes(codes: readonly number[] | undefined): number[] {
+  return [...new Set((codes ?? []).filter((code) => Number.isInteger(code) && code > 0))].sort((a, b) => a - b)
+}
+
 async function buildOpeningSeeds(
   snapshot: SeasonSnapshot,
   lastGw: number,
+  pins: SquadPins,
   onProgress?: DynamicSearchOptions['onProgress'],
 ): Promise<HindsightPlayer[][]> {
   const seeds: HindsightPlayer[][] = []
   const seen = new Set<string>()
+  const lockedSet = new Set(uniquePinCodes(pins.lockedCodes))
+  const excludedSet = new Set(uniquePinCodes(pins.excludedCodes))
 
   const add = (squad: HindsightPlayer[]) => {
+    if (!squadRespectsPins(squad, lockedSet, excludedSet)) return
     const key = squadKey(squad)
     if (seen.has(key)) return
     seen.add(key)
@@ -200,7 +272,7 @@ async function buildOpeningSeeds(
 
   onProgress?.({ gw: 0, lastGw, message: 'Seeding opening squads…' })
   try {
-    add((await solvePerfectGwTeam(snapshot, 1, 'opening')).squad)
+    add((await solvePerfectGwTeam(snapshot, 1, { costMode: 'opening', ...pins })).squad)
   } catch {
     /* ignore */
   }
@@ -216,24 +288,34 @@ async function buildOpeningSeeds(
   for (const gw of seedGws) {
     try {
       // Price at opening, points from seed GW — different directions.
-      const gwTeam = await solvePerfectGwTeam(snapshot, gw, 'gw-price')
+      const gwTeam = await solvePerfectGwTeam(snapshot, gw, { costMode: 'gw-price', ...pins })
       const openingPool = buildHindsightPool(snapshot, 1, 'opening')
       const byCode = new Map(openingPool.map((player) => [player.code, player]))
       const mapped = gwTeam.squad
         .map((player) => byCode.get(player.code))
         .filter((player): player is HindsightPlayer => player != null)
       if (mapped.length === 15 && isLegalSquadCodes(mapped, byCode)) add(mapped)
-      else add(gwTeam.squad.map((player) => ({ ...player, costTenths: byCode.get(player.code)?.costTenths ?? player.costTenths })))
+      else
+        add(
+          gwTeam.squad.map((player) => ({
+            ...player,
+            costTenths: byCode.get(player.code)?.costTenths ?? player.costTenths,
+          })),
+        )
     } catch {
       /* ignore */
     }
     await yieldToUi()
   }
 
-  if (seeds.length === 0) {
+  if (seeds.length === 0 && !hasPinCodes(pins)) {
     add(buildHindsightPool(snapshot, 1, 'opening').slice(0, 15))
   }
   return seeds.slice(0, 10)
+}
+
+function hasPinCodes(pins: SquadPins): boolean {
+  return uniquePinCodes(pins.lockedCodes).length > 0 || uniquePinCodes(pins.excludedCodes).length > 0
 }
 
 function buildStrategyFromState(
@@ -241,6 +323,7 @@ function buildStrategyFromState(
   lastGw: number,
   index: SeasonIndex,
   strategyIndex: number,
+  useChips: boolean,
 ): DynamicStrategy {
   const weeks: DynamicWeekPlan[] = []
   let squad = [...state.openingSquad]
@@ -284,7 +367,7 @@ function buildStrategyFromState(
     })
   }
 
-  const chips = assignHindsightChips(weeks)
+  const chips = resolveHindsightChips(weeks, useChips)
   const chipBonus = chips.reduce((sum, row) => sum + row.bonusPoints, 0)
   for (const week of weeks) {
     week.chips = chips.filter((chip) => chip.gw === week.gw)
@@ -323,6 +406,11 @@ function assignHindsightChips(weeks: DynamicWeekPlan[]): ChipUse[] {
     chips.push({ gw: bbWeek.gw, chip: 'bench-boost', bonusPoints: benchPoints(bbWeek.bench) })
   }
   return chips
+}
+
+/** Apply or skip hindsight TC/BB. When `useChips` is false, chipBonus stays 0. */
+export function resolveHindsightChips(weeks: DynamicWeekPlan[], useChips: boolean): ChipUse[] {
+  return useChips ? assignHindsightChips(weeks) : []
 }
 
 function benchPoints(bench: readonly HindsightPlayer[]): number {
@@ -417,11 +505,15 @@ function generateTransferMoves(
   openingCosts: ReadonlyMap<number, number>,
   nextGwPoints: ReadonlyMap<number, number>,
   limit: number,
+  locked: ReadonlySet<number> = new Set(),
+  excluded: ReadonlySet<number> = new Set(),
 ): TransferMove[] {
   const squadCodes = new Set(state.squad.map((player) => player.code))
-  const outs = [...state.squad].sort((a, b) => (nextGwPoints.get(a.code) ?? 0) - (nextGwPoints.get(b.code) ?? 0))
+  const outs = [...state.squad]
+    .filter((player) => !locked.has(player.code))
+    .sort((a, b) => (nextGwPoints.get(a.code) ?? 0) - (nextGwPoints.get(b.code) ?? 0))
   const ins = [...byCode.values()]
-    .filter((player) => !squadCodes.has(player.code))
+    .filter((player) => !squadCodes.has(player.code) && !excluded.has(player.code))
     .sort((a, b) => (nextGwPoints.get(b.code) ?? 0) - (nextGwPoints.get(a.code) ?? 0))
 
   const moves: TransferMove[] = []

@@ -539,6 +539,8 @@ Same feasible region (FPL rules + budget + pins). Multiple optima → show top 3
 
 Do not show theoretical as a recommended squad. Perfect-team pages (`PerfectTeamPage.tsx`) remain **hindsight education**, not live assistant output.
 
+Perfect Team supports the **current season** through the latest played GW (vaastav `merged_gw` / season snapshot). Dynamic search defaults to **no chips**; optional hindsight TC/BB can be toggled on. Wildcard / Free Hit assignment in the hindsight path is **deferred**.
+
 ---
 
 ## 11. Recommendation object

@@ -1,5 +1,5 @@
 import { Button, Label, Select } from '@songara/pwa-base/ui'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { FplPitch, type PitchPlayer } from '../components/FplPitch'
 import { PlayerLabel } from '../components/FplMedia'
@@ -11,9 +11,11 @@ import {
   solvePerfectGwTeam,
   type HindsightPlayer,
   type PerfectGwTeam,
+  type PerfectTeamCostMode,
 } from '../analysis/perfectTeam'
 import { openingOverlap, solveHistoricalGw0Opening } from '../analysis/historicalGw0'
 import { GW0_SOLVER_NOTE } from '../analysis/gw0Solver'
+import { isSquadInfeasibleError } from '../analysis/gw0Squad'
 import { priorSeasonId } from '../analysis/loadSeason'
 import { useFplData } from '../data/fplDataContext'
 import { loadSeasonSnapshot } from '../data/ingest'
@@ -22,12 +24,21 @@ import {
   readStaticTeamCache,
   writeDynamicStrategiesCache,
   writeStaticTeamCache,
+  type PerfectCacheOptionFlags,
 } from '../data/perfectTeamCache'
+import {
+  emptyPerfectTeamPins,
+  perfectPinsWithExclude,
+  perfectPinsWithLock,
+  perfectPinsWithoutCode,
+  readPerfectTeamPins,
+  writePerfectTeamPins,
+} from '../data/perfectTeamPinStore'
 import { latestPlayedRound, maxRound, teamById } from '../data/queries'
 import { formatGbpFromTenths } from '../data/prices'
 import { formatEvent, formatScoreLines } from '../data/scoring'
 import { teamRowStyle } from '../data/teamColors'
-import type { FplTeam, SeasonSnapshot } from '../data/types'
+import type { FplPlayer, FplTeam, PerfectTeamPinsRecord, SeasonSnapshot } from '../data/types'
 import { DataTable, ExplorerEmpty, ExplorerScreen, FormSlot } from './ExplorerScreen'
 
 type AnalysisMode = 'static' | 'dynamic'
@@ -57,6 +68,12 @@ type Gw0CompareState =
     }
   | { status: 'error'; message: string }
 
+function errorMessage(cause: unknown, fallback: string): string {
+  if (isSquadInfeasibleError(cause)) return cause.message
+  if (cause instanceof Error) return cause.message
+  return fallback
+}
+
 export function PerfectTeamPage() {
   const location = useLocation()
   const mode: AnalysisMode = location.pathname.includes('/dynamic') ? 'dynamic' : 'static'
@@ -69,6 +86,11 @@ export function PerfectTeamPage() {
   const [gw0Compare, setGw0Compare] = useState<Gw0CompareState>({ status: 'idle' })
   const [showDetails, setShowDetails] = useState(false)
   const [showCost, setShowCost] = useState(false)
+  const [useChips, setUseChips] = useState(false)
+  const [costMode, setCostMode] = useState<PerfectTeamCostMode>('gw-price')
+  const [pins, setPins] = useState<PerfectTeamPinsRecord>(emptyPerfectTeamPins(''))
+  const [pinQuery, setPinQuery] = useState('')
+  const didDefaultSeason = useRef(false)
 
   const previousSeasonId = useMemo(() => {
     if (catalog.length === 0) return null
@@ -79,39 +101,69 @@ export function PerfectTeamPage() {
     )
   }, [catalog])
 
-  // Default this page to the previous completed season (async switch via provider).
+  // One-shot default to previous completed season; never fight a later user choice.
   useEffect(() => {
-    if (!previousSeasonId || previousSeasonId === seasonId) return
-    const handle = window.setTimeout(() => setSeasonId(previousSeasonId), 0)
-    return () => window.clearTimeout(handle)
+    if (didDefaultSeason.current || !previousSeasonId) return
+    didDefaultSeason.current = true
+    if (previousSeasonId !== seasonId) setSeasonId(previousSeasonId)
   }, [previousSeasonId, seasonId, setSeasonId])
 
-  const seasonReady = Boolean(snapshot) && (!previousSeasonId || seasonId === previousSeasonId)
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      if (!seasonId) return
+      const stored = await readPerfectTeamPins(seasonId)
+      if (!cancelled) setPins(stored)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [seasonId])
 
+  const seasonReady = Boolean(snapshot)
   const maxGw = snapshot ? maxRound(snapshot.performances, snapshot.fixtures) : 0
   const latestGw = snapshot ? latestPlayedRound(snapshot.performances) : 0
   const selectedGw = Math.min(Math.max(1, round || latestGw || maxGw || 1), maxGw || 1)
   const revision = snapshot?.meta.sourceRevision ?? 'unknown'
+  const noPlayedGwMessage =
+    snapshot && (maxGw < 1 || latestGw < 1)
+      ? snapshot.meta.kind === 'current'
+        ? 'Current-season hindsight data is not available yet (no played gameweek performances in the snapshot). Try refreshing season data, or pick a completed historical season.'
+        : 'No played gameweek performances in this season snapshot.'
+      : null
+  const cacheFlags: PerfectCacheOptionFlags = useMemo(
+    () => ({
+      useChips,
+      lockedCodes: pins.lockedCodes,
+      excludedCodes: pins.excludedCodes,
+      costMode,
+    }),
+    [useChips, pins.lockedCodes, pins.excludedCodes, costMode],
+  )
 
   useEffect(() => {
-    if (!snapshot || mode !== 'static' || !seasonReady) return
+    if (!snapshot || mode !== 'static' || !seasonReady || noPlayedGwMessage) return
     let cancelled = false
     void (async () => {
       setStaticState({ status: 'loading' })
       try {
-        const cached = await readStaticTeamCache(snapshot.meta.seasonId, selectedGw, revision)
+        const cached = await readStaticTeamCache(snapshot.meta.seasonId, selectedGw, revision, cacheFlags)
         if (cached && !cancelled) {
           setStaticState({ status: 'ready', team: cached, fromCache: true })
           return
         }
-        const team = await solvePerfectGwTeam(snapshot, selectedGw, 'gw-price')
-        await writeStaticTeamCache(snapshot.meta.seasonId, selectedGw, revision, team)
+        const team = await solvePerfectGwTeam(snapshot, selectedGw, {
+          costMode,
+          lockedCodes: pins.lockedCodes,
+          excludedCodes: pins.excludedCodes,
+        })
+        await writeStaticTeamCache(snapshot.meta.seasonId, selectedGw, revision, team, cacheFlags)
         if (!cancelled) setStaticState({ status: 'ready', team, fromCache: false })
       } catch (cause) {
         if (!cancelled) {
           setStaticState({
             status: 'error',
-            message: cause instanceof Error ? cause.message : 'Perfect team solver failed',
+            message: errorMessage(cause, 'Perfect team solver failed'),
           })
         }
       }
@@ -119,15 +171,26 @@ export function PerfectTeamPage() {
     return () => {
       cancelled = true
     }
-  }, [snapshot, mode, selectedGw, revision, seasonReady])
+  }, [
+    snapshot,
+    mode,
+    selectedGw,
+    revision,
+    seasonReady,
+    noPlayedGwMessage,
+    cacheFlags,
+    costMode,
+    pins.lockedCodes,
+    pins.excludedCodes,
+  ])
 
   useEffect(() => {
-    if (!snapshot || mode !== 'dynamic' || !seasonReady) return
+    if (!snapshot || mode !== 'dynamic' || !seasonReady || noPlayedGwMessage) return
     let cancelled = false
     void (async () => {
       setDynamicState({ status: 'loading', progress: 'Checking cache…' })
       try {
-        const cached = await readDynamicStrategiesCache(snapshot.meta.seasonId, revision)
+        const cached = await readDynamicStrategiesCache(snapshot.meta.seasonId, revision, cacheFlags)
         if (cached && !cancelled) {
           setDynamicState({ status: 'ready', strategies: cached, fromCache: true })
           setStrategyIndex(0)
@@ -135,11 +198,14 @@ export function PerfectTeamPage() {
           return
         }
         const strategies = await searchDynamicStrategies(snapshot, {
+          useChips,
+          lockedCodes: pins.lockedCodes,
+          excludedCodes: pins.excludedCodes,
           onProgress: ({ gw, lastGw, message }) => {
             if (!cancelled) setDynamicState({ status: 'loading', progress: message || `GW ${gw}/${lastGw}` })
           },
         })
-        await writeDynamicStrategiesCache(snapshot.meta.seasonId, revision, strategies)
+        await writeDynamicStrategiesCache(snapshot.meta.seasonId, revision, strategies, cacheFlags)
         if (!cancelled) {
           setDynamicState({ status: 'ready', strategies, fromCache: false })
           setStrategyIndex(0)
@@ -149,7 +215,7 @@ export function PerfectTeamPage() {
         if (!cancelled) {
           setDynamicState({
             status: 'error',
-            message: cause instanceof Error ? cause.message : 'Dynamic search failed',
+            message: errorMessage(cause, 'Dynamic search failed'),
           })
         }
       }
@@ -157,7 +223,17 @@ export function PerfectTeamPage() {
     return () => {
       cancelled = true
     }
-  }, [snapshot, mode, revision, seasonReady])
+  }, [
+    snapshot,
+    mode,
+    revision,
+    seasonReady,
+    noPlayedGwMessage,
+    cacheFlags,
+    useChips,
+    pins.lockedCodes,
+    pins.excludedCodes,
+  ])
 
   const teams = useMemo(() => (snapshot ? teamById(snapshot.teams) : new Map<number, FplTeam>()), [snapshot])
 
@@ -165,6 +241,7 @@ export function PerfectTeamPage() {
     dynamicState.status === 'ready' ? dynamicState.strategies[strategyIndex] ?? dynamicState.strategies[0] : null
   const activeWeek = activeStrategy?.weeks.find((week) => week.gw === dynamicGw) ?? activeStrategy?.weeks[0]
   const weekSeries = activeStrategy ? strategyWeekSeries(activeStrategy) : []
+  const baseSeasonPoints = activeStrategy ? activeStrategy.totalPoints - activeStrategy.chipBonus : 0
 
   function stepGw(delta: number) {
     if (!activeStrategy) return
@@ -172,6 +249,11 @@ export function PerfectTeamPage() {
     const index = Math.max(0, weeks.indexOf(dynamicGw))
     const next = weeks[Math.min(weeks.length - 1, Math.max(0, index + delta))]
     if (next != null) setDynamicGw(next)
+  }
+
+  async function commitPins(next: PerfectTeamPinsRecord) {
+    setPins(next)
+    await writePerfectTeamPins(next)
   }
 
   async function runGw0Comparison(target: SeasonSnapshot) {
@@ -186,17 +268,31 @@ export function PerfectTeamPage() {
       setGw0Compare({ status: 'loading', progress: 'Solving GW0^ opening…' })
       const modelOpening = await solveHistoricalGw0Opening(prior, target)
       setGw0Compare({ status: 'loading', progress: 'Solving ideal GW1…' })
-      const ideal = await solvePerfectGwTeam(target, 1, 'opening')
+      const ideal = await solvePerfectGwTeam(target, 1, {
+        costMode: 'opening',
+        lockedCodes: pins.lockedCodes,
+        excludedCodes: pins.excludedCodes,
+      })
       setGw0Compare({ status: 'loading', progress: 'Simulating season from GW0^…' })
       const fromModel = await searchDynamicStrategies(target, {
         lockedOpening: modelOpening,
         maxStrategies: 1,
+        useChips,
+        lockedCodes: pins.lockedCodes,
+        excludedCodes: pins.excludedCodes,
         onProgress: ({ message }) => setGw0Compare({ status: 'loading', progress: message }),
       })
       const optimal =
         dynamicState.status === 'ready'
           ? dynamicState.strategies[0]
-          : (await searchDynamicStrategies(target, { maxStrategies: 1 }))[0]
+          : (
+              await searchDynamicStrategies(target, {
+                maxStrategies: 1,
+                useChips,
+                lockedCodes: pins.lockedCodes,
+                excludedCodes: pins.excludedCodes,
+              })
+            )[0]
       const overlap = openingOverlap(modelOpening, ideal.squad)
       setGw0Compare({
         status: 'ready',
@@ -209,7 +305,7 @@ export function PerfectTeamPage() {
     } catch (cause) {
       setGw0Compare({
         status: 'error',
-        message: cause instanceof Error ? cause.message : 'GW0 comparison failed',
+        message: errorMessage(cause, 'GW0 comparison failed'),
       })
     }
   }
@@ -218,7 +314,7 @@ export function PerfectTeamPage() {
     <ExplorerScreen
       kicker="Perfect hindsight"
       title="Best possible teams by season"
-      question="With full knowledge of published points, what is the best legal squad each gameweek — and the best transfer path through a whole season?"
+      question="With full knowledge of published points, what is the best legal squad each gameweek — and the best transfer path through a whole season? This is an oracle ceiling, not a live recommender."
     >
       <div className="fpl-explorer__toolbar">
         <Link
@@ -238,8 +334,10 @@ export function PerfectTeamPage() {
       </div>
 
       <p className="fpl-explorer__meta">
-        Season slicer stays above. Default is the previous completed season. Static mode solves one gameweek; dynamic mode
-        caches a full-season transfer search in IndexedDB so revisits stay instant. {GW0_SOLVER_NOTE}
+        Season slicer stays above — current and historical seasons are both supported. First visit defaults to the
+        previous completed season; your later selection sticks. Hindsight uses known points only (not forecasts). Static
+        mode solves one gameweek; dynamic mode caches a full-season transfer search in IndexedDB. Wildcard / Free Hit
+        chip search is deferred. {GW0_SOLVER_NOTE}
       </p>
 
       {status === 'loading' || !seasonReady ? <p className="fpl-explorer__meta">Loading season data…</p> : null}
@@ -247,8 +345,31 @@ export function PerfectTeamPage() {
         <ExplorerEmpty title="Season data unavailable" description="Could not load vaastav snapshot for this season." />
       ) : null}
 
+      {snapshot && seasonReady ? (
+        <PerfectTeamControls
+          mode={mode}
+          useChips={useChips}
+          onUseChips={setUseChips}
+          costMode={costMode}
+          onCostMode={setCostMode}
+          pins={pins}
+          pinQuery={pinQuery}
+          onPinQuery={setPinQuery}
+          players={snapshot.players}
+          teams={teams}
+          onCommitPins={(next) => void commitPins(next)}
+          latestGw={latestGw}
+          maxGw={maxGw}
+          seasonKind={snapshot.meta.kind}
+        />
+      ) : null}
+
       {snapshot && mode === 'static' ? (
         <>
+          {noPlayedGwMessage ? (
+            <ExplorerEmpty title="No hindsight data yet" description={noPlayedGwMessage} />
+          ) : (
+            <>
           <div className="fpl-explorer__toolbar">
             <Label className="fpl-explorer__field">
               Gameweek
@@ -256,6 +377,7 @@ export function PerfectTeamPage() {
                 {Array.from({ length: maxGw }, (_, index) => index + 1).map((gw) => (
                   <option key={gw} value={gw}>
                     GW {gw}
+                    {gw > latestGw ? ' (unplayed)' : ''}
                   </option>
                 ))}
               </Select>
@@ -292,11 +414,17 @@ export function PerfectTeamPage() {
               chips={[]}
             />
           ) : null}
+            </>
+          )}
         </>
       ) : null}
 
       {snapshot && mode === 'dynamic' ? (
         <>
+          {noPlayedGwMessage ? (
+            <ExplorerEmpty title="No hindsight data yet" description={noPlayedGwMessage} />
+          ) : (
+            <>
           {dynamicState.status === 'loading' ? (
             <p className="fpl-explorer__meta">Computing & caching season path… {dynamicState.progress}</p>
           ) : null}
@@ -339,14 +467,24 @@ export function PerfectTeamPage() {
                 label={`${activeStrategy.label} — points by gameweek`}
                 data={weekSeries}
                 yAxisLabel="Points"
-                note={`Season total ${activeStrategy.totalPoints} · hits ${activeStrategy.totalHits} · chip bonus ${activeStrategy.chipBonus}. Gold points mark chip weeks (TC / BB). Use pitch arrows or the GW slicer.`}
+                note={
+                  useChips
+                    ? `Base ${baseSeasonPoints} · chip bonus ${activeStrategy.chipBonus} · total ${activeStrategy.totalPoints} · hits ${activeStrategy.totalHits}. Gold points mark chip weeks (TC / BB).`
+                    : `Season total ${activeStrategy.totalPoints} · hits ${activeStrategy.totalHits} · chips off (transfer/hit path only).`
+                }
               />
 
               <div className="fpl-perfect-summary">
                 <p>
-                  <strong>{activeStrategy.totalPoints}</strong> season points ·{' '}
-                  <strong>{activeStrategy.totalHits}</strong> transfer hits ·{' '}
-                  <strong>{activeStrategy.chipBonus}</strong> chip bonus
+                  <strong>{activeStrategy.totalPoints}</strong> season points
+                  {useChips ? (
+                    <>
+                      {' '}
+                      · base <strong>{baseSeasonPoints}</strong> · chip bonus{' '}
+                      <strong>{activeStrategy.chipBonus}</strong>
+                    </>
+                  ) : null}{' '}
+                  · <strong>{activeStrategy.totalHits}</strong> transfer hits
                 </p>
                 <p className="fpl-explorer__meta">{squadQuotaDetail(activeStrategy.openingSquad)} opening squad</p>
                 {activeWeek.transfers.length > 0 ? (
@@ -396,11 +534,194 @@ export function PerfectTeamPage() {
               />
             </>
           ) : null}
+            </>
+          )}
         </>
       ) : null}
 
       <AnalysisFaq />
     </ExplorerScreen>
+  )
+}
+
+function PerfectTeamControls({
+  mode,
+  useChips,
+  onUseChips,
+  costMode,
+  onCostMode,
+  pins,
+  pinQuery,
+  onPinQuery,
+  players,
+  teams,
+  onCommitPins,
+  latestGw,
+  maxGw,
+  seasonKind,
+}: {
+  mode: AnalysisMode
+  useChips: boolean
+  onUseChips: (value: boolean) => void
+  costMode: PerfectTeamCostMode
+  onCostMode: (value: PerfectTeamCostMode) => void
+  pins: PerfectTeamPinsRecord
+  pinQuery: string
+  onPinQuery: (value: string) => void
+  players: readonly FplPlayer[]
+  teams: Map<number, FplTeam>
+  onCommitPins: (next: PerfectTeamPinsRecord) => void
+  latestGw: number
+  maxGw: number
+  seasonKind: SeasonSnapshot['meta']['kind']
+}) {
+  const q = pinQuery.trim().toLowerCase()
+  const matches = useMemo(() => {
+    if (!q) return []
+    return players
+      .filter((player) => {
+        const team = teams.get(player.teamId)
+        const hay = `${player.webName} ${player.firstName} ${player.secondName} ${team?.shortName ?? ''}`.toLowerCase()
+        return hay.includes(q)
+      })
+      .slice(0, 12)
+  }, [players, teams, q])
+
+  function labelFor(code: number): string {
+    const player = players.find((row) => row.code === code)
+    if (!player) return `code ${code}`
+    const team = teams.get(player.teamId)
+    return `${player.webName} (${team?.shortName ?? '?'})`
+  }
+
+  return (
+    <section className="fpl-gw0-pins">
+      <h2 className="fpl-explorer__title">Search options</h2>
+      <p className="fpl-explorer__meta">
+        {seasonKind === 'current'
+          ? `Current season through latest played GW${latestGw || '—'} (of ${maxGw || '—'} scheduled).`
+          : `Historical season · latest played GW${latestGw || '—'} / max GW${maxGw || '—'}.`}{' '}
+        Locks and excludes apply to Perfect Team only — they do not change your manager squad.
+      </p>
+
+      <div className="fpl-explorer__toolbar">
+        {mode === 'dynamic' ? (
+          <label className="fpl-perfect-toggle">
+            <input type="checkbox" checked={useChips} onChange={(event) => onUseChips(event.target.checked)} />
+            With hindsight chips (TC / BB)
+          </label>
+        ) : null}
+        {mode === 'static' ? (
+          <Label className="fpl-explorer__field">
+            Cost mode
+            <Select value={costMode} onChange={(event) => onCostMode(event.target.value as PerfectTeamCostMode)}>
+              <option value="gw-price">GW price</option>
+              <option value="opening">Opening price</option>
+            </Select>
+          </Label>
+        ) : null}
+      </div>
+      {mode === 'dynamic' && !useChips ? (
+        <p className="fpl-explorer__meta">Chips off — season totals exclude TC/BB bonus (transfer/hit path only).</p>
+      ) : null}
+
+      <div className="fpl-gw0-chip-row">
+        <strong>Must include</strong>
+        {pins.lockedCodes.length === 0 ? <span className="fpl-explorer__meta">none</span> : null}
+        {pins.lockedCodes.map((code) => (
+          <Button
+            key={`lock-${code}`}
+            className="fpl-gw0-chip"
+            size="sm"
+            variant="secondary"
+            onClick={() => onCommitPins(perfectPinsWithoutCode(pins, code))}
+          >
+            {labelFor(code)} ×
+          </Button>
+        ))}
+        {pins.lockedCodes.length ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onCommitPins({ ...pins, lockedCodes: [], updatedAt: Date.now() })}
+          >
+            Clear locks
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="fpl-gw0-chip-row">
+        <strong>Must exclude</strong>
+        {pins.excludedCodes.length === 0 ? <span className="fpl-explorer__meta">none</span> : null}
+        {pins.excludedCodes.map((code) => (
+          <Button
+            key={`excl-${code}`}
+            className="fpl-gw0-chip"
+            size="sm"
+            variant="secondary"
+            onClick={() => onCommitPins(perfectPinsWithoutCode(pins, code))}
+          >
+            {labelFor(code)} ×
+          </Button>
+        ))}
+        {pins.excludedCodes.length ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onCommitPins({ ...pins, excludedCodes: [], updatedAt: Date.now() })}
+          >
+            Clear excludes
+          </Button>
+        ) : null}
+      </div>
+
+      <Label className="fpl-explorer__field">
+        Search players to lock / exclude
+        <input
+          className="fpl-perfect-pin-search"
+          type="search"
+          value={pinQuery}
+          placeholder="web name or club…"
+          onChange={(event) => onPinQuery(event.target.value)}
+        />
+      </Label>
+      {matches.length > 0 ? (
+        <ul className="fpl-perfect-pin-matches">
+          {matches.map((player) => {
+            const team = teams.get(player.teamId)
+            const locked = pins.lockedCodes.includes(player.code)
+            const excluded = pins.excludedCodes.includes(player.code)
+            return (
+              <li key={player.code} className="fpl-gw0-chip-row">
+                <span>
+                  {player.webName} · {team?.shortName ?? '?'} · {player.position}
+                </span>
+                <Button
+                  size="sm"
+                  variant={locked ? 'primary' : 'secondary'}
+                  onClick={() =>
+                    onCommitPins(locked ? perfectPinsWithoutCode(pins, player.code) : perfectPinsWithLock(pins, player.code))
+                  }
+                >
+                  {locked ? 'Unlock' : 'Lock'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={excluded ? 'primary' : 'secondary'}
+                  onClick={() =>
+                    onCommitPins(
+                      excluded ? perfectPinsWithoutCode(pins, player.code) : perfectPinsWithExclude(pins, player.code),
+                    )
+                  }
+                >
+                  {excluded ? 'Include' : 'Exclude'}
+                </Button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
+    </section>
   )
 }
 

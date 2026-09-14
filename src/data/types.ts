@@ -212,6 +212,18 @@ export type Gw0SquadPinsRecord = {
   updatedAt: number
 }
 
+/**
+ * Perfect Team lock/exclude pins, keyed by season. Does not mutate manager
+ * `userPicks` / actual squad state.
+ */
+export type PerfectTeamPinsRecord = {
+  id: string
+  seasonId: string
+  lockedCodes: number[]
+  excludedCodes: number[]
+  updatedAt: number
+}
+
 /** Manager identity from `GET /api/entry/{entry_id}/`. */
 export type ManagerIdentity = {
   entryId: number

@@ -1,6 +1,6 @@
 import { getFplCacheDb } from './db'
 import type { DynamicStrategy } from '../analysis/perfectSeason'
-import type { PerfectGwTeam } from '../analysis/perfectTeam'
+import type { PerfectGwTeam, PerfectTeamCostMode } from '../analysis/perfectTeam'
 
 export type PerfectDynamicCacheRecord = {
   id: string
@@ -19,22 +19,50 @@ export type PerfectStaticCacheRecord = {
   team: PerfectGwTeam
 }
 
-const DYNAMIC_VERSION = 'v3'
-const STATIC_VERSION = 'v2'
-
-export function dynamicCacheId(seasonId: string, sourceRevision: string): string {
-  return `dynamic:${DYNAMIC_VERSION}:${seasonId}:${sourceRevision}`
+export type PerfectCacheOptionFlags = {
+  useChips?: boolean
+  lockedCodes?: readonly number[]
+  excludedCodes?: readonly number[]
+  costMode?: PerfectTeamCostMode
 }
 
-export function staticCacheId(seasonId: string, round: number, sourceRevision: string): string {
-  return `static:${STATIC_VERSION}:${seasonId}:gw${round}:${sourceRevision}`
+const DYNAMIC_VERSION = 'v4'
+const STATIC_VERSION = 'v3'
+
+export function optionsFingerprint(flags: PerfectCacheOptionFlags = {}): string {
+  const chips = flags.useChips ? 'chips' : 'nochips'
+  const cost = flags.costMode ?? 'gw-price'
+  const locks = uniqueSorted(flags.lockedCodes).join(',')
+  const excl = uniqueSorted(flags.excludedCodes).join(',')
+  return `${chips}:${cost}:L${locks}:X${excl}`
+}
+
+export function dynamicCacheId(
+  seasonId: string,
+  sourceRevision: string,
+  flags: PerfectCacheOptionFlags = {},
+): string {
+  return `dynamic:${DYNAMIC_VERSION}:${seasonId}:${sourceRevision}:${optionsFingerprint(flags)}`
+}
+
+export function staticCacheId(
+  seasonId: string,
+  round: number,
+  sourceRevision: string,
+  flags: PerfectCacheOptionFlags = {},
+): string {
+  return `static:${STATIC_VERSION}:${seasonId}:gw${round}:${sourceRevision}:${optionsFingerprint({
+    ...flags,
+    useChips: false,
+  })}`
 }
 
 export async function readDynamicStrategiesCache(
   seasonId: string,
   sourceRevision: string,
+  flags: PerfectCacheOptionFlags = {},
 ): Promise<DynamicStrategy[] | null> {
-  const row = await getFplCacheDb().perfectDynamic.get(dynamicCacheId(seasonId, sourceRevision))
+  const row = await getFplCacheDb().perfectDynamic.get(dynamicCacheId(seasonId, sourceRevision, flags))
   return row?.strategies?.length ? row.strategies : null
 }
 
@@ -42,9 +70,10 @@ export async function writeDynamicStrategiesCache(
   seasonId: string,
   sourceRevision: string,
   strategies: DynamicStrategy[],
+  flags: PerfectCacheOptionFlags = {},
 ): Promise<void> {
   await getFplCacheDb().perfectDynamic.put({
-    id: dynamicCacheId(seasonId, sourceRevision),
+    id: dynamicCacheId(seasonId, sourceRevision, flags),
     seasonId,
     sourceRevision,
     computedAt: Date.now(),
@@ -56,8 +85,9 @@ export async function readStaticTeamCache(
   seasonId: string,
   round: number,
   sourceRevision: string,
+  flags: PerfectCacheOptionFlags = {},
 ): Promise<PerfectGwTeam | null> {
-  const row = await getFplCacheDb().perfectStatic.get(staticCacheId(seasonId, round, sourceRevision))
+  const row = await getFplCacheDb().perfectStatic.get(staticCacheId(seasonId, round, sourceRevision, flags))
   return row?.team ?? null
 }
 
@@ -66,13 +96,18 @@ export async function writeStaticTeamCache(
   round: number,
   sourceRevision: string,
   team: PerfectGwTeam,
+  flags: PerfectCacheOptionFlags = {},
 ): Promise<void> {
   await getFplCacheDb().perfectStatic.put({
-    id: staticCacheId(seasonId, round, sourceRevision),
+    id: staticCacheId(seasonId, round, sourceRevision, flags),
     seasonId,
     round,
     sourceRevision,
     computedAt: Date.now(),
     team,
   })
+}
+
+function uniqueSorted(codes: readonly number[] | undefined): number[] {
+  return [...new Set((codes ?? []).filter((code) => Number.isInteger(code) && code > 0))].sort((a, b) => a - b)
 }

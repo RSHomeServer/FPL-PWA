@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bestLineupAcrossFormations,
   buildHindsightPool,
+  diagnoseHindsightPins,
   isLegalSquadCodes,
   type HindsightPlayer,
 } from './perfectTeam'
@@ -18,6 +19,25 @@ function mockPlayer(overrides: Partial<HindsightPlayer> & Pick<HindsightPlayer, 
     performance: overrides.performance ?? null,
     ...overrides,
   }
+}
+
+function legalPool(): HindsightPlayer[] {
+  const positions = [
+    ...Array.from({ length: 3 }, (_, i) => ({ position: 'GK', teamId: i + 1 })),
+    ...Array.from({ length: 8 }, (_, i) => ({ position: 'DEF', teamId: (i % 5) + 1 })),
+    ...Array.from({ length: 8 }, (_, i) => ({ position: 'MID', teamId: (i % 5) + 1 })),
+    ...Array.from({ length: 5 }, (_, i) => ({ position: 'FWD', teamId: (i % 4) + 1 })),
+  ]
+  return positions.map((row, index) =>
+    mockPlayer({
+      code: 100 + index,
+      webName: `P${index + 1}`,
+      position: row.position,
+      teamId: row.teamId,
+      costTenths: 45 + (index % 7) * 5,
+      gwPoints: index + 1,
+    }),
+  )
 }
 
 describe('perfectTeam lineup', () => {
@@ -148,5 +168,21 @@ describe('isLegalSquadCodes', () => {
     )
     const byCode = new Map(squad.map((player) => [player.code, player]))
     expect(isLegalSquadCodes(squad, byCode)).toBe(false)
+  })
+})
+
+describe('perfect team pins', () => {
+  it('reports infeasible lock when four from one club are locked', () => {
+    const pool = legalPool()
+    const sameClub = pool.filter((player) => player.teamId === 1).slice(0, 4)
+    expect(sameClub.length).toBe(4)
+    const violations = diagnoseHindsightPins(pool, { lockedCodes: sameClub.map((player) => player.code) })
+    expect(violations.some((row) => row.code === 'club')).toBe(true)
+    expect(violations[0]?.detail).toMatch(/locked players \(max 3\)/)
+  })
+
+  it('reports unknown lock codes clearly', () => {
+    const violations = diagnoseHindsightPins(legalPool(), { lockedCodes: [999001] })
+    expect(violations.some((row) => row.code === 'unknown-lock')).toBe(true)
   })
 })

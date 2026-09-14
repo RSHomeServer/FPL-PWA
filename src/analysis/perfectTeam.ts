@@ -9,7 +9,12 @@ import {
   FORMATION_IDS,
   MAX_PER_CLUB,
   SQUAD_POSITIONS,
+  SQUAD_SIZE,
+  SquadInfeasibleError,
+  formatPinInfeasibility,
   type FormationId,
+  type PinViolation,
+  type SquadPins,
 } from './gw0Squad'
 import { positionPool, type PositionPool } from './metrics'
 
@@ -40,6 +45,25 @@ export type PerfectGwTeam = {
 }
 
 export type PerfectTeamCostMode = 'gw-price' | 'opening'
+
+export type PerfectTeamSolveOptions = {
+  costMode?: PerfectTeamCostMode
+  lockedCodes?: readonly number[]
+  excludedCodes?: readonly number[]
+}
+
+function resolveSolveOptions(
+  costModeOrOptions: PerfectTeamCostMode | PerfectTeamSolveOptions = 'gw-price',
+): Required<Pick<PerfectTeamSolveOptions, 'costMode'>> & SquadPins {
+  if (typeof costModeOrOptions === 'string') {
+    return { costMode: costModeOrOptions, lockedCodes: [], excludedCodes: [] }
+  }
+  return {
+    costMode: costModeOrOptions.costMode ?? 'gw-price',
+    lockedCodes: costModeOrOptions.lockedCodes ?? [],
+    excludedCodes: costModeOrOptions.excludedCodes ?? [],
+  }
+}
 
 /** Build the hindsight player pool for one gameweek. */
 export function buildHindsightPool(
@@ -105,19 +129,54 @@ export function scoreBreakdown(player: HindsightPlayer): ReturnType<typeof score
 export async function solvePerfectGwTeam(
   snapshot: SeasonSnapshot,
   round: number,
-  costMode: PerfectTeamCostMode = 'gw-price',
+  costModeOrOptions: PerfectTeamCostMode | PerfectTeamSolveOptions = 'gw-price',
 ): Promise<PerfectGwTeam> {
-  const pool = buildHindsightPool(snapshot, round, costMode)
+  const opts = resolveSolveOptions(costModeOrOptions)
+  const pool = buildHindsightPool(snapshot, round, opts.costMode)
   if (pool.length < 15) {
     throw new Error(`Only ${pool.length} players in pool for GW${round}`)
   }
 
-  let best: PerfectGwTeam | null = null
-  for (const formation of FORMATION_IDS) {
-    const candidate = await solvePerfectGwFormation(pool, round, formation)
-    if (!best || candidate.totalPoints > best.totalPoints) best = candidate
+  const pins: SquadPins = { lockedCodes: opts.lockedCodes, excludedCodes: opts.excludedCodes }
+  const violations = diagnoseHindsightPins(pool, pins)
+  if (violations.length > 0) {
+    throw new SquadInfeasibleError(formatPinInfeasibility(violations), violations)
   }
-  if (!best) throw new Error(`Could not solve perfect team for GW${round}`)
+
+  let best: PerfectGwTeam | null = null
+  let lastStatus = 'Unknown'
+  for (const formation of FORMATION_IDS) {
+    try {
+      const candidate = await solvePerfectGwFormation(pool, round, formation, pins)
+      if (!best || candidate.totalPoints > best.totalPoints) best = candidate
+    } catch (cause) {
+      if (cause instanceof Error && cause.message.includes('HiGHS')) {
+        lastStatus = cause.message
+        continue
+      }
+      throw cause
+    }
+  }
+  if (!best) {
+    const diagnosed = diagnoseHindsightPins(pool, pins)
+    if (diagnosed.length > 0 || hasPins(pins)) {
+      throw new SquadInfeasibleError(
+        formatPinInfeasibility(
+          diagnosed.length
+            ? diagnosed
+            : [
+                {
+                  code: 'infeasible',
+                  detail: `${lastStatus}. Binding FPL rules with current locks/excludes.`,
+                  lockedCodes: [...(pins.lockedCodes ?? [])],
+                },
+              ],
+        ),
+        diagnosed,
+      )
+    }
+    throw new Error(`Could not solve perfect team for GW${round}`)
+  }
   return best
 }
 
@@ -125,9 +184,10 @@ export async function solvePerfectGwFormation(
   pool: readonly HindsightPlayer[],
   round: number,
   formation: FormationId,
+  pins: SquadPins = {},
 ): Promise<PerfectGwTeam> {
   const highs = await loadGw0Highs()
-  const lp = buildPerfectGwLp(pool, formation)
+  const lp = buildPerfectGwLp(pool, formation, pins)
   const result = highs.solve(lp, {
     output_flag: false,
     log_to_console: false,
@@ -139,6 +199,133 @@ export async function solvePerfectGwFormation(
     throw new Error(`HiGHS ${result.Status} for perfect GW${round} (${formation})`)
   }
   return extractPerfectTeam(pool, round, formation, result.Columns)
+}
+
+/** Explain why lock/exclude pins cannot form a legal hindsight 15. */
+export function diagnoseHindsightPins(
+  pool: readonly HindsightPlayer[],
+  pins: SquadPins = {},
+): PinViolation[] {
+  const lockedCodes = uniquePinCodes(pins.lockedCodes)
+  const excludedCodes = uniquePinCodes(pins.excludedCodes)
+  const excluded = new Set(excludedCodes)
+  const byCode = new Map(pool.map((player) => [player.code, player]))
+  const violations: PinViolation[] = []
+
+  const both = lockedCodes.filter((code) => excluded.has(code))
+  if (both.length) {
+    violations.push({
+      code: 'lock-exclude-conflict',
+      detail: `Locked and excluded (cannot be both): ${hindsightLabels(both, byCode)}`,
+      lockedCodes: both,
+    })
+  }
+
+  const unknown = lockedCodes.filter((code) => !byCode.has(code))
+  if (unknown.length) {
+    violations.push({
+      code: 'unknown-lock',
+      detail: `Locked codes not in the season pool: ${unknown.join(', ')}`,
+      lockedCodes: unknown,
+    })
+  }
+
+  const lockedRows = lockedCodes
+    .map((code) => byCode.get(code))
+    .filter((player): player is HindsightPlayer => player != null)
+
+  if (lockedRows.length > SQUAD_SIZE) {
+    violations.push({
+      code: 'size',
+      detail: `${lockedRows.length} locked players exceeds the 15-man squad`,
+      lockedCodes: lockedRows.map((player) => player.code),
+    })
+  }
+
+  const spend = lockedRows.reduce((sum, player) => sum + player.costTenths, 0)
+  if (spend > BUDGET_TENTHS) {
+    violations.push({
+      code: 'budget',
+      detail: `Locked spend ${formatGbpFromTenths(spend)} exceeds ${formatGbpFromTenths(BUDGET_TENTHS)}: ${hindsightLabels(
+        lockedRows.map((player) => player.code),
+        byCode,
+      )}`,
+      lockedCodes: lockedRows.map((player) => player.code),
+    })
+  }
+
+  const byClub = new Map<number, HindsightPlayer[]>()
+  for (const player of lockedRows) {
+    const list = byClub.get(player.teamId) ?? []
+    list.push(player)
+    byClub.set(player.teamId, list)
+  }
+  for (const rows of byClub.values()) {
+    if (rows.length > MAX_PER_CLUB) {
+      violations.push({
+        code: 'club',
+        detail: `${rows[0]?.teamShortName ?? 'club'} has ${rows.length} locked players (max ${MAX_PER_CLUB}): ${hindsightLabels(
+          rows.map((player) => player.code),
+          byCode,
+        )}`,
+        lockedCodes: rows.map((player) => player.code),
+      })
+    }
+  }
+
+  const byPos: Record<PositionPool, HindsightPlayer[]> = { GK: [], DEF: [], MID: [], FWD: [] }
+  for (const player of lockedRows) byPos[positionPool(player.position)].push(player)
+  for (const poolKey of Object.keys(SQUAD_POSITIONS) as PositionPool[]) {
+    if (byPos[poolKey].length > SQUAD_POSITIONS[poolKey]) {
+      violations.push({
+        code: 'position',
+        detail: `${byPos[poolKey].length} locked ${poolKey} exceeds the ${SQUAD_POSITIONS[poolKey]} quota: ${hindsightLabels(
+          byPos[poolKey].map((player) => player.code),
+          byCode,
+        )}`,
+        lockedCodes: byPos[poolKey].map((player) => player.code),
+      })
+    }
+  }
+
+  const remaining = pool.filter((player) => !excluded.has(player.code))
+  if (remaining.length < SQUAD_SIZE) {
+    violations.push({
+      code: 'size',
+      detail: `After excludes, ${remaining.length} players remain (need ${SQUAD_SIZE})`,
+      lockedCodes,
+    })
+  }
+  const remainPos: Record<PositionPool, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 }
+  for (const player of remaining) remainPos[positionPool(player.position)] += 1
+  for (const poolKey of Object.keys(SQUAD_POSITIONS) as PositionPool[]) {
+    if (remainPos[poolKey] < SQUAD_POSITIONS[poolKey]) {
+      violations.push({
+        code: 'position',
+        detail: `After excludes, ${remainPos[poolKey]} ${poolKey} remain (need ${SQUAD_POSITIONS[poolKey]})`,
+        lockedCodes: byPos[poolKey].map((player) => player.code),
+      })
+    }
+  }
+
+  return violations
+}
+
+function hasPins(pins: SquadPins): boolean {
+  return uniquePinCodes(pins.lockedCodes).length > 0 || uniquePinCodes(pins.excludedCodes).length > 0
+}
+
+function uniquePinCodes(codes: readonly number[] | undefined): number[] {
+  return [...new Set((codes ?? []).filter((code) => Number.isInteger(code) && code > 0))].sort((a, b) => a - b)
+}
+
+function hindsightLabels(codes: readonly number[], byCode: ReadonlyMap<number, HindsightPlayer>): string {
+  return codes
+    .map((code) => {
+      const player = byCode.get(code)
+      return player ? `${player.webName} (${player.teamShortName} ${positionPool(player.position)})` : `code ${code}`
+    })
+    .join(', ')
 }
 
 export function lineupFromSquad(
@@ -231,7 +418,11 @@ export function isLegalSquadCodes(
   return true
 }
 
-function buildPerfectGwLp(candidates: readonly HindsightPlayer[], formation: FormationId): string {
+function buildPerfectGwLp(
+  candidates: readonly HindsightPlayer[],
+  formation: FormationId,
+  pins: SquadPins = {},
+): string {
   const counts = FORMATIONS[formation]
   const objTerms: string[] = []
   for (const player of candidates) {
@@ -240,6 +431,16 @@ function buildPerfectGwLp(candidates: readonly HindsightPlayer[], formation: For
     objTerms.push(`${pts} s${player.code}`, `${pts} c${player.code}`)
   }
   const objective = objTerms.length ? objTerms.join(' + ') : '0 x0'
+  const byCode = new Map(candidates.map((player) => [player.code, player]))
+  const pinLines: string[] = []
+  for (const code of uniquePinCodes(pins.lockedCodes)) {
+    if (!byCode.has(code)) continue
+    pinLines.push(` lock_${code}: x${code} = 1`)
+  }
+  for (const code of uniquePinCodes(pins.excludedCodes)) {
+    if (!byCode.has(code)) continue
+    pinLines.push(` excl_${code}: x${code} = 0`)
+  }
 
   const lines = [
     'Maximize',
@@ -253,6 +454,7 @@ function buildPerfectGwLp(candidates: readonly HindsightPlayer[], formation: For
     ...clubRows(candidates),
     ...starterPositionRows(candidates, counts),
     ...linkRows(candidates),
+    ...pinLines,
     'Binaries',
     candidates.flatMap((row) => [`x${row.code}`, `s${row.code}`, `c${row.code}`]).join(' '),
     'End',

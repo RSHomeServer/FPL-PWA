@@ -12,6 +12,7 @@ import type {
   FplTeam,
   LiveCacheMeta,
   Gw0SquadPinsRecord,
+  PerfectTeamPinsRecord,
   RoleEvidenceRecord,
   SeasonCacheMeta,
   TransferScenarioRecord,
@@ -43,6 +44,7 @@ export type FplCacheDb = ReturnType<typeof createSongaraDb> & {
   liveEvents: Table<FplLiveEvent>
   roleEvidence: Table<RoleEvidenceRecord>
   gw0SquadPins: Table<Gw0SquadPinsRecord>
+  perfectTeamPins: Table<PerfectTeamPinsRecord>
   perfectDynamic: Table<PerfectDynamicCacheRecord>
   perfectStatic: Table<PerfectStaticCacheRecord>
   userProfile: Table<UserProfileRecord>
@@ -115,6 +117,12 @@ export function getFplCacheDb(): FplCacheDb {
           userHistory: 'entryId',
           userTransfers: 'entryId',
           transferScenarios: 'id, entryId',
+        },
+      },
+      {
+        version: 7,
+        stores: {
+          perfectTeamPins: 'id, seasonId',
         },
       },
     ],
