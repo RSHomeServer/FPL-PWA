@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { FplPitch, type PitchPlayer } from '../components/FplPitch'
 import { PlayerLabel } from '../components/FplMedia'
-import type { ChipUse, DynamicStrategy } from '../analysis/perfectSeason'
+import type { ChipUse, DynamicStrategy, DynamicWeekPlan } from '../analysis/perfectSeason'
 import { searchDynamicStrategies, squadQuotaDetail, strategyWeekSeries, weekChipLabel } from '../analysis/perfectSeason'
 import {
   formatPerfectSpend,
@@ -92,21 +92,17 @@ export function PerfectTeamPage() {
   const [pinQuery, setPinQuery] = useState('')
   const didDefaultSeason = useRef(false)
 
-  const previousSeasonId = useMemo(() => {
+  const currentSeasonId = useMemo(() => {
     if (catalog.length === 0) return null
-    return (
-      [...catalog].reverse().find((entry) => entry.kind === 'historical')?.seasonId ??
-      catalog.filter((entry) => entry.kind !== 'current').at(-1)?.seasonId ??
-      null
-    )
+    return catalog.find((entry) => entry.kind === 'current')?.seasonId ?? catalog.at(-1)?.seasonId ?? null
   }, [catalog])
 
-  // One-shot default to previous completed season; never fight a later user choice.
+  // One-shot default to the current season (26/27); never fight a later user choice.
   useEffect(() => {
-    if (didDefaultSeason.current || !previousSeasonId) return
+    if (didDefaultSeason.current || !currentSeasonId) return
     didDefaultSeason.current = true
-    if (previousSeasonId !== seasonId) setSeasonId(previousSeasonId)
-  }, [previousSeasonId, seasonId, setSeasonId])
+    if (currentSeasonId !== seasonId) setSeasonId(currentSeasonId)
+  }, [currentSeasonId, seasonId, setSeasonId])
 
   useEffect(() => {
     let cancelled = false
@@ -335,9 +331,9 @@ export function PerfectTeamPage() {
 
       <p className="fpl-explorer__meta">
         Season slicer stays above — current and historical seasons are both supported. First visit defaults to the
-        previous completed season; your later selection sticks. Hindsight uses known points only (not forecasts). Static
-        mode solves one gameweek; dynamic mode caches a full-season transfer search in IndexedDB. Wildcard / Free Hit
-        chip search is deferred. {GW0_SOLVER_NOTE}
+        current season (e.g. 2026-27); your later selection sticks. Hindsight uses known points only (not forecasts).
+        Static mode solves one gameweek; dynamic mode caches a full-season transfer search in IndexedDB. Wildcard /
+        Free Hit chip search is deferred. {GW0_SOLVER_NOTE}
       </p>
 
       {status === 'loading' || !seasonReady ? <p className="fpl-explorer__meta">Loading season data…</p> : null}
@@ -525,6 +521,13 @@ export function PerfectTeamPage() {
                 onShowDetails={setShowDetails}
                 onShowCost={setShowCost}
                 chips={activeWeek.chips}
+              />
+
+              <DynamicWeekLedger
+                strategy={activeStrategy}
+                teams={teams}
+                activeGw={dynamicGw}
+                onSelectGw={setDynamicGw}
               />
 
               <Gw0ComparePanel
@@ -723,6 +726,139 @@ function PerfectTeamControls({
       ) : null}
     </section>
   )
+}
+
+function DynamicWeekLedger({
+  strategy,
+  teams,
+  activeGw,
+  onSelectGw,
+}: {
+  strategy: DynamicStrategy
+  teams: Map<number, FplTeam>
+  activeGw: number
+  onSelectGw: (gw: number) => void
+}) {
+  return (
+    <section className="fpl-perfect-week-log">
+      <div className="fpl-perfect-week-log__head">
+        <h2 className="fpl-explorer__title">Week-by-week squad & transfers</h2>
+        <p className="fpl-explorer__meta">
+          Scroll through every gameweek. Transfers are the moves made <em>into</em> that week. Click a week heading to
+          sync the pitch above.
+        </p>
+      </div>
+      <div className="fpl-perfect-week-log__scroller" tabIndex={0} aria-label="Week-by-week squad tables">
+        {strategy.weeks.map((week) => (
+          <DynamicWeekBlock
+            key={week.gw}
+            week={week}
+            teams={teams}
+            active={week.gw === activeGw}
+            onSelect={() => onSelectGw(week.gw)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function DynamicWeekBlock({
+  week,
+  teams,
+  active,
+  onSelect,
+}: {
+  week: DynamicWeekPlan
+  teams: Map<number, FplTeam>
+  active: boolean
+  onSelect: () => void
+}) {
+  const xiCodes = new Set(week.xi.map((player) => player.code))
+  const benchOrder = new Map(week.bench.map((player, index) => [player.code, index + 1]))
+  const chip = weekChipLabel(week.chips)
+  const rows = [...week.squad].sort(
+    (a, b) =>
+      positionOrderForLog(a) - positionOrderForLog(b) ||
+      b.gwPoints - a.gwPoints ||
+      a.webName.localeCompare(b.webName),
+  )
+
+  return (
+    <article
+      className={`fpl-perfect-week-block${active ? ' fpl-perfect-week-block--active' : ''}`}
+      id={`perfect-week-${week.gw}`}
+    >
+      <button type="button" className="fpl-perfect-week-block__title" onClick={onSelect}>
+        <span>
+          GW{week.gw} · {week.formation} · <strong>{week.gwPoints}</strong> pts
+          {week.hits > 0 ? ` · −${week.hits} hits` : ''}
+          {chip ? ` · ${chip}` : ''}
+        </span>
+        <span className="fpl-explorer__meta">{active ? 'Showing on pitch' : 'Show on pitch'}</span>
+      </button>
+
+      {week.transfers.length > 0 ? (
+        <p className="fpl-perfect-week-block__transfers">
+          Transfers:{' '}
+          {week.transfers
+            .map(
+              (transfer) =>
+                `${transfer.out.webName} → ${transfer.in.webName}${transfer.hit ? ` (−${transfer.hit})` : ''}`,
+            )
+            .join('; ')}
+        </p>
+      ) : (
+        <p className="fpl-perfect-week-block__transfers fpl-explorer__meta">No transfers</p>
+      )}
+
+      <div className="fpl-perfect-week-block__table-wrap">
+        <table className="fpl-perfect-week-table">
+          <caption className="visually-hidden">
+            GW{week.gw} squad of 15
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Role</th>
+              <th scope="col">Player</th>
+              <th scope="col">Pos</th>
+              <th scope="col">Club</th>
+              <th scope="col">Cost</th>
+              <th scope="col">Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((player) => {
+              const role =
+                player.code === week.captain.code
+                  ? 'C'
+                  : player.code === week.viceCaptain.code
+                    ? 'VC'
+                    : xiCodes.has(player.code)
+                      ? 'XI'
+                      : `B${benchOrder.get(player.code) ?? ''}`
+              const team = teams.get(player.teamId)
+              return (
+                <tr key={player.code} style={teamRowStyle(team)}>
+                  <td>{role}</td>
+                  <td>{player.webName}</td>
+                  <td>{player.position}</td>
+                  <td>{team?.shortName ?? player.teamShortName}</td>
+                  <td>{formatGbpFromTenths(player.costTenths)}</td>
+                  <td>{player.gwPoints}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  )
+}
+
+function positionOrderForLog(player: HindsightPlayer): number {
+  const order: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3, AM: 2 }
+  return order[player.position] ?? 9
 }
 
 function Gw0ComparePanel({

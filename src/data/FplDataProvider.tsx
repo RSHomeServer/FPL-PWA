@@ -23,8 +23,8 @@ function writeStoredSeason(seasonId: string) {
 
 function preferredSeasonId(catalog: SeasonCatalogEntry[], stored: string | null): string {
   if (stored && catalog.some((entry) => entry.seasonId === stored)) return stored
-  const historical = [...catalog].reverse().find((entry) => entry.kind === 'historical')
-  return historical?.seasonId ?? catalog[catalog.length - 1]?.seasonId ?? ''
+  const current = catalog.find((entry) => entry.kind === 'current')?.seasonId
+  return current ?? catalog[catalog.length - 1]?.seasonId ?? ''
 }
 
 export function FplDataProvider({ children }: { children: ReactNode }) {
