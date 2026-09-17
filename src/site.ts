@@ -9,6 +9,7 @@ import { PlayerDetailPage } from './pages/PlayerDetailPage'
 import { OptimiserPage } from './pages/OptimiserPage'
 import { PerfectTeamPage } from './pages/PerfectTeamPage'
 import { PlayersPage } from './pages/PlayersPage'
+import { SeasonDataPage } from './pages/SeasonDataPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TeamsPage } from './pages/TeamsPage'
 
@@ -33,5 +34,6 @@ export const fplSite = defineSite({
     { path: '/gw0-flags', component: FlagsReviewPage },
     { path: '/perfect-team/dynamic', component: PerfectTeamPage },
     { path: '/perfect-team', component: PerfectTeamPage },
+    { path: '/season-data', component: SeasonDataPage },
   ],
 })

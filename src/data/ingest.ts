@@ -10,6 +10,7 @@ import {
   fetchVaastavRevision,
 } from './cdn'
 import { getFplCacheDb } from './db'
+import { loadCurrentSeasonSnapshot } from './fplCurrentSeason'
 import {
   dedupePerformances,
   parseFixtureRow,
@@ -59,6 +60,16 @@ export async function loadSeasonSnapshot(
   seasonId: string,
   options?: { force?: boolean; kind?: SeasonCatalogEntry['kind'] },
 ): Promise<SeasonSnapshot> {
+  const kind = options?.kind ?? (await resolveSeasonKind(seasonId))
+
+  // Current season: official FPL API (Vaastav merged_gw often lags).
+  if (kind === 'current') {
+    return loadCurrentSeasonSnapshot({
+      force: options?.force,
+      seasonId,
+    })
+  }
+
   const cache = getFplCacheDb()
   const meta = await cache.seasons.get(seasonId)
   if (!options?.force && isSeasonFresh(meta)) {
@@ -75,7 +86,14 @@ export async function loadSeasonSnapshot(
     }
   }
 
-  return ingestSeason(seasonId, options?.kind ?? meta?.kind ?? 'historical')
+  return ingestSeason(seasonId, kind)
+}
+
+async function resolveSeasonKind(seasonId: string): Promise<SeasonCatalogEntry['kind']> {
+  const cached = await getFplCacheDb().seasons.get(seasonId)
+  if (cached?.kind) return cached.kind
+  const catalog = await loadSeasonCatalog({ force: false })
+  return catalog.find((entry) => entry.seasonId === seasonId)?.kind ?? 'historical'
 }
 
 async function ingestSeason(
@@ -130,6 +148,7 @@ async function ingestSeason(
   const meta: SeasonCacheMeta = {
     seasonId,
     kind,
+    dataSource: 'vaastav',
     fetchedAt: Date.now(),
     sourceRevision: revision,
     etags,

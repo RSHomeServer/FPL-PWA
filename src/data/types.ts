@@ -3,15 +3,19 @@
  *
  * Source kinds:
  * - `historical` — completed season snapshot from vaastav (stable cache)
- * - `current` — latest published season folder (short TTL; refresh after new GWs)
+ * - `current` — in-progress season; performances from official FPL
+ *   `/api/event/{gw}/live/` (bootstrap + fixtures). Vaastav `merged_gw` is not
+ *   required and often lags early season.
  * - `live` — official FPL bootstrap + fixtures (short TTL; canonical GW0 prices)
  * - `user` — manager-specific squad/picks (official entry API; see `fplUserSource.ts`)
  *
- * Official live API: `fantasy.premierleague.com/api/bootstrap-static/` and
- * `/api/fixtures/`. Same element/fixture ids and tenths-of-a-million prices.
- * Per-event live endpoints are look-ahead at GW0 and are not called.
+ * Official live API: `fantasy.premierleague.com/api/bootstrap-static/`,
+ * `/api/fixtures/`, and `/api/event/{gw}/live/` for current-season history.
  */
 export type FplSourceKind = 'historical' | 'current' | 'live' | 'user'
+
+/** Where a season snapshot's performances came from. */
+export type SeasonDataSource = 'vaastav' | 'fpl-api'
 
 export type PlayerPosition = 'GK' | 'DEF' | 'MID' | 'FWD' | 'AM' | 'UNK'
 
@@ -104,6 +108,8 @@ export type SeasonCatalogEntry = {
 export type SeasonCacheMeta = {
   seasonId: string
   kind: Exclude<FplSourceKind, 'user'>
+  /** Performance row origin. Omitted on older Dexie rows (treat as vaastav). */
+  dataSource?: SeasonDataSource
   fetchedAt: number
   sourceRevision: string
   etags: Record<string, string>

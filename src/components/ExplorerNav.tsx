@@ -13,6 +13,7 @@ const LINKS = [
   { to: '/gw0', label: 'GW0 visuals', end: true },
   { to: '/gw0-data', label: 'GW0 data', end: true },
   { to: '/perfect-team', label: 'Perfect team', end: false },
+  { to: '/season-data', label: 'Season data', end: true },
   { to: '/gw0-flags', label: 'GW0 flags', end: true },
 ] as const
 

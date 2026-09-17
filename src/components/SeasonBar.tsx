@@ -4,10 +4,13 @@ import { useFplData } from '../data/fplDataContext'
 export function SeasonBar() {
   const { catalog, seasonId, setSeasonId, snapshot, status, error, refresh } = useFplData()
   const kind = catalog.find((entry) => entry.seasonId === seasonId)?.kind
+  const dataSource = snapshot?.meta.dataSource
   const revision = snapshot?.meta.sourceRevision
   const fetched = snapshot?.meta.fetchedAt
     ? new Date(snapshot.meta.fetchedAt).toLocaleString()
     : null
+  const sourceLabel =
+    dataSource === 'fpl-api' ? 'FPL API' : dataSource === 'vaastav' ? 'Vaastav' : null
 
   return (
     <div className="fpl-explorer__toolbar">
@@ -33,6 +36,7 @@ export function SeasonBar() {
       <p className="fpl-explorer__meta">
         {error ? error : null}
         {!error && kind ? `${kind} snapshot` : null}
+        {!error && sourceLabel ? ` · ${sourceLabel}` : null}
         {!error && revision ? ` · ${revision}` : null}
         {!error && fetched ? ` · ${fetched}` : null}
       </p>

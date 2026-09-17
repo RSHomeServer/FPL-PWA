@@ -14,6 +14,7 @@ const EXPLORERS = [
   { to: '/gw0', label: 'GW0 visuals', hint: 'Pitch, charts, and decision UI' },
   { to: '/gw0-data', label: 'GW0 data', hint: 'Calculations, tables, and controls' },
   { to: '/perfect-team', label: 'Perfect team', hint: 'Hindsight best squads by GW and season' },
+  { to: '/season-data', label: 'Season data', hint: 'Validate Vaastav vs FPL API snapshots' },
   { to: '/gw0-flags', label: 'GW0 flags', hint: 'Review minutes enums' },
 ] as const
 
@@ -42,9 +43,9 @@ export function HomePage() {
           captain, keep versus sell — with the reasoning, not only the ranks.
         </p>
         <p className="fpl-home__note">
-          Explorers load published history from the vaastav dataset (via CDN).
-          Switch season on any explorer; refresh pulls new gameweeks after they
-          are published. Nothing here is invented stats.
+          Historical seasons load from Vaastav (CDN). The current season builds gameweek
+          performances from the official FPL API. Use Season data to validate what is cached;
+          Refresh on the season bar forces a re-pull.
         </p>
         <div className="fpl-home__cta">
           <Stack direction="row" gap="sm">
