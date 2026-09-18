@@ -4,18 +4,32 @@ export type EliteClusterElementShare = {
   elementId: number
   count: number
   ownership: number
+  /** True when the element is in the medoid XI (false = medoid bench). */
+  onXi: boolean
 }
 
 export type EliteGwCluster = {
+  /** Stable track id across gameweeks (also used for colour). */
   id: number
+  /** Display label key; UI resolves element ids → web names. */
   label: string
+  /** Top signature element ids frozen when the track is born (for stable naming). */
+  signatureElementIds: number[]
   gw: number
   medoidEntryId: number
+  /** Medoid 15-man set (sorted). */
+  medoidElements: number[]
   memberEntryIds: number[]
   size: number
   avgPoints: number
   avgOverallRank: number | null
   chipCounts: Record<string, number>
+  /**
+   * Medoid XI + bench (15), each with ownership **within this cluster**
+   * (share of cluster members who own that element).
+   */
+  squadElements: EliteClusterElementShare[]
+  /** All elements sorted by cluster ownership (for search / across-cluster views). */
   topElements: EliteClusterElementShare[]
 }
 
@@ -48,11 +62,33 @@ export type ClusterEliteOptions = {
   gameweeks?: number[]
   /** Min members with a squad for that GW. */
   minMembers?: number
+  /**
+   * Max Jaccard distance between medoid sets to reuse a track id across GWs.
+   * Default 0.62.
+   */
+  alignMaxDistance?: number
+}
+
+export const ELITE_CLUSTER_COLORS = [
+  '#0d9488',
+  '#d97706',
+  '#2563eb',
+  '#dc2626',
+  '#65a30d',
+  '#0891b2',
+  '#c2410c',
+  '#7c3aed',
+  '#b45309',
+  '#0f766e',
+] as const
+
+export function eliteClusterColor(clusterId: number): string {
+  return ELITE_CLUSTER_COLORS[Math.abs(clusterId) % ELITE_CLUSTER_COLORS.length]!
 }
 
 /**
  * Cluster elite entries independently each GW (Jaccard on 15-man sets + k-medoids),
- * then build transition flows between consecutive GWs.
+ * align cluster identities across weeks, then build transition flows.
  */
 export function clusterEliteEntries(
   entries: readonly EliteEntryRecord[],
@@ -60,10 +96,11 @@ export function clusterEliteEntries(
 ): EliteClusteringResult {
   const k = Math.max(2, options.k ?? 6)
   const minMembers = options.minMembers ?? 8
+  const alignMaxDistance = options.alignMaxDistance ?? 0.62
   const available = sortedGameweeks(entries)
   const gameweeks = (options.gameweeks ?? available).filter((gw) => available.includes(gw))
 
-  const byGw: EliteGwClustering[] = []
+  const rawByGw: EliteGwClustering[] = []
   for (const gw of gameweeks) {
     const points = entries
       .map((entry) => {
@@ -81,8 +118,10 @@ export function clusterEliteEntries(
       gw,
       Math.min(k, Math.max(2, Math.floor(points.length / 4))),
     )
-    byGw.push(clustering)
+    rawByGw.push(clustering)
   }
+
+  const byGw = alignClustersAcrossGameweeks(rawByGw, alignMaxDistance)
 
   const transitions: EliteClusterTransition[] = []
   for (let i = 0; i < byGw.length - 1; i += 1) {
@@ -159,8 +198,12 @@ function clusterGameweek(
 
     const memberSquads = members.map((index) => squads[index]!)
     const memberEntryIds = members.map((index) => entries[index]!.entryId)
+    const medoidSquad = squads[medoidLocal]!
+    const ownership = ownershipShares(memberSquads)
+    const ownershipById = new Map(ownership.map((row) => [row.elementId, row]))
+    const squadElements = buildMedoidSquadShares(medoidSquad, ownershipById)
+    const signatureElementIds = ownership.slice(0, 3).map((row) => row.elementId)
 
-    const topElements = ownershipShares(memberSquads).slice(0, 12)
     const chipCounts: Record<string, number> = {}
     let pointsSum = 0
     let rankSum = 0
@@ -177,15 +220,18 @@ function clusterGameweek(
 
     clusters.push({
       id: clusterId,
-      label: `C${clusterId + 1}`,
+      label: provisionalLabel(signatureElementIds),
+      signatureElementIds,
       gw,
       medoidEntryId: entries[medoidLocal]!.entryId,
+      medoidElements: squadElementSet(medoidSquad),
       memberEntryIds,
       size: members.length,
       avgPoints: members.length ? pointsSum / members.length : 0,
       avgOverallRank: rankN ? rankSum / rankN : null,
       chipCounts,
-      topElements,
+      squadElements,
+      topElements: ownership,
     })
   }
 
@@ -193,20 +239,134 @@ function clusterGameweek(
   const relabeled = clusters.map((cluster, index) => ({
     ...cluster,
     id: index,
-    label: `C${index + 1}`,
+    label: provisionalLabel(cluster.signatureElementIds),
   }))
 
-  const finalAssignment: Record<number, number> = {}
-  for (const cluster of relabeled) {
-    for (const entryId of cluster.memberEntryIds) finalAssignment[entryId] = cluster.id
+  return rebuildClustering(
+    gw,
+    entries.map((entry) => entry.entryId),
+    relabeled,
+  )
+}
+
+function buildMedoidSquadShares(
+  medoid: EliteGameweekSquad,
+  ownershipById: Map<number, EliteClusterElementShare>,
+): EliteClusterElementShare[] {
+  const xiSet = new Set(medoid.xi)
+  const ordered = [...medoid.xi, ...medoid.bench]
+  const seen = new Set<number>()
+  const rows: EliteClusterElementShare[] = []
+  for (const elementId of ordered) {
+    if (seen.has(elementId)) continue
+    seen.add(elementId)
+    const share = ownershipById.get(elementId)
+    rows.push({
+      elementId,
+      count: share?.count ?? 1,
+      ownership: share?.ownership ?? 0,
+      onXi: xiSet.has(elementId),
+    })
+  }
+  return rows
+}
+
+function provisionalLabel(signatureElementIds: readonly number[]): string {
+  return signatureElementIds.map((id) => `#${id}`).join(' · ') || 'Cluster'
+}
+
+/**
+ * Match clusters week-to-week by medoid Jaccard similarity so the same template
+ * keeps a stable id / signature / colour across gameweeks.
+ */
+export function alignClustersAcrossGameweeks(
+  byGw: readonly EliteGwClustering[],
+  maxDistance = 0.62,
+): EliteGwClustering[] {
+  if (byGw.length === 0) return []
+
+  let nextTrackId = 0
+  const aligned: EliteGwClustering[] = []
+
+  for (let i = 0; i < byGw.length; i += 1) {
+    const current = byGw[i]!
+    if (i === 0) {
+      const clusters = current.clusters.map((cluster) => {
+        const id = nextTrackId
+        nextTrackId += 1
+        return { ...cluster, id, label: provisionalLabel(cluster.signatureElementIds) }
+      })
+      aligned.push(rebuildClustering(current.gw, current.entryIds, clusters))
+      continue
+    }
+
+    const previous = aligned[i - 1]!
+    const pairs: { prevId: number; curIdx: number; distance: number }[] = []
+    for (const prev of previous.clusters) {
+      for (let curIdx = 0; curIdx < current.clusters.length; curIdx += 1) {
+        const cur = current.clusters[curIdx]!
+        pairs.push({
+          prevId: prev.id,
+          curIdx,
+          distance: jaccardDistance(prev.medoidElements, cur.medoidElements),
+        })
+      }
+    }
+    pairs.sort((a, b) => a.distance - b.distance || a.prevId - b.prevId || a.curIdx - b.curIdx)
+
+    const usedPrev = new Set<number>()
+    const usedCur = new Set<number>()
+    const curIdxToTrack = new Map<number, number>()
+    for (const pair of pairs) {
+      if (pair.distance > maxDistance) break
+      if (usedPrev.has(pair.prevId) || usedCur.has(pair.curIdx)) continue
+      usedPrev.add(pair.prevId)
+      usedCur.add(pair.curIdx)
+      curIdxToTrack.set(pair.curIdx, pair.prevId)
+    }
+
+    const clusters = current.clusters.map((cluster, curIdx) => {
+      const matchedId = curIdxToTrack.get(curIdx)
+      if (matchedId != null) {
+        const prev = previous.clusters.find((row) => row.id === matchedId)!
+        return {
+          ...cluster,
+          id: matchedId,
+          signatureElementIds: prev.signatureElementIds,
+          label: provisionalLabel(prev.signatureElementIds),
+        }
+      }
+      const id = nextTrackId
+      nextTrackId += 1
+      return {
+        ...cluster,
+        id,
+        label: provisionalLabel(cluster.signatureElementIds),
+      }
+    })
+
+    aligned.push(rebuildClustering(current.gw, current.entryIds, clusters))
   }
 
+  return aligned
+}
+
+function rebuildClustering(
+  gw: number,
+  entryIds: readonly number[],
+  clusters: EliteGwCluster[],
+): EliteGwClustering {
+  const sorted = [...clusters].sort((a, b) => b.size - a.size || a.id - b.id)
+  const assignment: Record<number, number> = {}
+  for (const cluster of sorted) {
+    for (const entryId of cluster.memberEntryIds) assignment[entryId] = cluster.id
+  }
   return {
     gw,
-    k: relabeled.length,
-    entryIds: entries.map((entry) => entry.entryId),
-    assignment: finalAssignment,
-    clusters: relabeled,
+    k: sorted.length,
+    entryIds: [...entryIds],
+    assignment,
+    clusters: sorted,
   }
 }
 
@@ -223,6 +383,7 @@ function ownershipShares(squads: readonly EliteGameweekSquad[]): EliteClusterEle
       elementId,
       count,
       ownership: count / n,
+      onXi: false,
     }))
     .sort((a, b) => b.ownership - a.ownership || a.elementId - b.elementId)
 }

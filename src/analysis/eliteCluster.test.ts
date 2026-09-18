@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alignClustersAcrossGameweeks,
   clusterEliteEntries,
   jaccardDistance,
   squadElementSet,
@@ -32,7 +33,6 @@ function entry(id: number, gameweeks: EliteGameweekSquad[]): EliteEntryRecord {
   }
 }
 
-/** Shared core + cluster-specific players so Jaccard separates templates. */
 function template(core: number[], unique: number[]): number[] {
   return [...core, ...unique].slice(0, 15)
 }
@@ -57,7 +57,7 @@ describe('squadElementSet', () => {
 })
 
 describe('clusterEliteEntries', () => {
-  it('separates two clear templates per GW and builds transitions', () => {
+  it('separates two clear templates, shows 15 squad elements, and builds transitions', () => {
     const coreA = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     const coreB = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
     const entries: EliteEntryRecord[] = []
@@ -67,7 +67,6 @@ describe('clusterEliteEntries', () => {
       entries.push(
         entry(1000 + i, [
           squad(1, ids),
-          // half of A moves toward B in GW2
           squad(2, i < 4 ? ids : template(coreB, [200 + i, 201 + i, 202 + i, 203 + i, 204 + i])),
         ]),
       )
@@ -80,7 +79,8 @@ describe('clusterEliteEntries', () => {
     const result = clusterEliteEntries(entries, { k: 2, minMembers: 8 })
     expect(result.byGw).toHaveLength(2)
     expect(result.byGw[0]!.clusters.length).toBeGreaterThanOrEqual(2)
-    expect(result.byGw[0]!.entryIds).toHaveLength(16)
+    expect(result.byGw[0]!.clusters[0]!.squadElements.length).toBe(15)
+    expect(result.byGw[0]!.clusters[0]!.squadElements.filter((row) => row.onXi).length).toBe(11)
 
     const gw1Sizes = result.byGw[0]!.clusters.map((c) => c.size).sort((a, b) => b - a)
     expect(gw1Sizes[0]).toBeGreaterThanOrEqual(6)
@@ -91,10 +91,52 @@ describe('clusterEliteEntries', () => {
     expect(totalFlow).toBe(16)
   })
 
+  it('keeps stable track ids when medoids stay similar across GWs', () => {
+    const coreA = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    const coreB = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    const entries: EliteEntryRecord[] = []
+    for (let i = 0; i < 8; i += 1) {
+      const ids = template(coreA, [110 + i, 111 + i, 112 + i, 113 + i, 114 + i])
+      entries.push(entry(1000 + i, [squad(1, ids), squad(2, ids)]))
+    }
+    for (let i = 0; i < 8; i += 1) {
+      const ids = template(coreB, [210 + i, 211 + i, 212 + i, 213 + i, 214 + i])
+      entries.push(entry(2000 + i, [squad(1, ids), squad(2, ids)]))
+    }
+
+    const result = clusterEliteEntries(entries, { k: 2, minMembers: 8 })
+    const gw1Ids = new Set(result.byGw[0]!.clusters.map((c) => c.id))
+    const gw2Ids = new Set(result.byGw[1]!.clusters.map((c) => c.id))
+    expect([...gw1Ids].every((id) => gw2Ids.has(id))).toBe(true)
+
+    const aTrack = result.byGw[0]!.assignment[1000]!
+    expect(result.byGw[1]!.assignment[1000]).toBe(aTrack)
+    expect(result.byGw[0]!.clusters.find((c) => c.id === aTrack)?.signatureElementIds).toEqual(
+      result.byGw[1]!.clusters.find((c) => c.id === aTrack)?.signatureElementIds,
+    )
+  })
+
   it('skips GWs below minMembers', () => {
     const ids = Array.from({ length: 15 }, (_, i) => i + 1)
     const entries = [entry(1, [squad(1, ids)]), entry(2, [squad(1, ids)])]
     const result = clusterEliteEntries(entries, { k: 2, minMembers: 8 })
     expect(result.byGw).toHaveLength(0)
+  })
+})
+
+describe('alignClustersAcrossGameweeks', () => {
+  it('is a no-op for a single gameweek', () => {
+    const result = clusterEliteEntries(
+      Array.from({ length: 10 }, (_, i) => {
+        const ids = template(
+          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          [50 + i, 51 + i, 52 + i, 53 + i, 54 + i],
+        )
+        return entry(i + 1, [squad(1, ids)])
+      }),
+      { k: 2, minMembers: 8 },
+    )
+    const again = alignClustersAcrossGameweeks(result.byGw)
+    expect(again[0]!.clusters.map((c) => c.id)).toEqual(result.byGw[0]!.clusters.map((c) => c.id))
   })
 })

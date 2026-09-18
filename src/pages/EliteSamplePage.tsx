@@ -1,5 +1,10 @@
 import { Button } from '@songara/pwa-base/ui'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  clusterEliteEntries,
+  eliteClusterColor,
+  type EliteClusteringResult,
+} from '../analysis/eliteCluster'
 import { eliteEntriesToDictionary, readAllEliteEntries, readEliteSampleMeta } from '../data/eliteEntryStore'
 import {
   collectEliteTopNSample,
@@ -8,7 +13,7 @@ import {
 } from '../data/eliteTopNSample'
 import { useFplData } from '../data/fplDataContext'
 import type { EliteEntryRecord, EliteSampleMeta } from '../data/types'
-import { EliteClusterPanel } from './EliteClusterPanel'
+import { ClusterBadge, EliteClusterPanel, EliteEntryPitch } from './EliteClusterPanel'
 import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
 
 export function EliteSamplePage() {
@@ -19,6 +24,9 @@ export function EliteSamplePage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [activeGw, setActiveGw] = useState<number | null>(null)
+  const [metaOpen, setMetaOpen] = useState(false)
+  const [dictOpen, setDictOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -28,6 +36,7 @@ export function EliteSamplePage() {
       setMeta(nextMeta)
       setEntries(nextEntries)
       if (nextEntries[0]) setSelectedId(nextEntries[0].entryId)
+      if (nextMeta?.gameweeks[0]) setActiveGw(nextMeta.gameweeks[0])
     })()
     return () => {
       cancelled = true
@@ -43,7 +52,13 @@ export function EliteSamplePage() {
     const map = new Map((snapshot?.teams ?? []).map((team) => [team.id, team]))
     return map
   }, [snapshot])
-  const selected = entries.find((row) => row.entryId === selectedId) ?? entries[0] ?? null
+
+  const clustering = useMemo(
+    () => (entries.length ? clusterEliteEntries(entries, { k: 6, minMembers: 8 }) : emptyClustering()),
+    [entries],
+  )
+
+  const selected = entries.find((row) => row.entryId === selectedId) ?? null
   const overlapCounts = useMemo(() => {
     const counts = new Map<number, number>()
     for (const entry of entries) {
@@ -52,6 +67,20 @@ export function EliteSamplePage() {
     }
     return [...counts.entries()].sort((a, b) => a[0] - b[0])
   }, [entries])
+
+  const clusterGameweeks = clustering.byGw.map((row) => row.gw)
+
+  function clusterLabel(clusterId: number | undefined, gw: number): string | undefined {
+    if (clusterId == null) return undefined
+    const cluster = clustering.byGw
+      .find((row) => row.gw === gw)
+      ?.clusters.find((row) => row.id === clusterId)
+    if (!cluster) return undefined
+    return cluster.signatureElementIds
+      .map((id) => playersById.get(id)?.webName ?? `#${id}`)
+      .slice(0, 3)
+      .join(' · ')
+  }
 
   async function runCollect() {
     setBusy(true)
@@ -67,6 +96,8 @@ export function EliteSamplePage() {
       setMeta(result.meta)
       setEntries(result.entries)
       setSelectedId(result.entries[0]?.entryId ?? null)
+      setActiveGw(result.meta.gameweeks[0] ?? null)
+      setMetaOpen(false)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Elite sample collection failed')
     } finally {
@@ -82,6 +113,7 @@ export function EliteSamplePage() {
       setMeta(null)
       setEntries([])
       setSelectedId(null)
+      setActiveGw(null)
     } finally {
       setBusy(false)
     }
@@ -94,9 +126,9 @@ export function EliteSamplePage() {
       question="Pull the top 200 from the largest classic leagues, then cluster 15-man squads each gameweek and inspect transitions."
     >
       <p className="fpl-explorer__meta">
-        Leagues default to Overall, Gameweek 1, Sky Sports, and England when present. Each unique team stores total
-        points, league memberships, and per-GW XI / bench / captain / vice / chips. Clustering uses Jaccard distance on
-        those 15-man sets (k-medoids, k≈6).
+        Leagues default to Overall, Gameweek 1, Sky Sports, and England when present. Clustering uses Jaccard distance
+        on 15-man sets (k-medoids, k≈6). Ownership % on cluster cards is within that cluster. Transition ribbons appear
+        under the cluster cards (scroll to <a href="#elite-transitions">Transition diagram</a>).
       </p>
 
       <div className="fpl-explorer__toolbar">
@@ -112,15 +144,15 @@ export function EliteSamplePage() {
       {error ? <ExplorerEmpty title="Collection failed" description={error} /> : null}
 
       {meta ? (
-        <section className="fpl-perfect-summary">
-          <h2 className="fpl-explorer__title">Sample meta</h2>
+        <Collapsible
+          title={`Sample data · ${meta.uniqueEntries} entries · GW ${meta.gameweeks.join(', ') || '—'}`}
+          open={metaOpen}
+          onToggle={() => setMetaOpen((value) => !value)}
+        >
           <ul className="fpl-explorer__meta">
             <li>
               Season <strong>{meta.seasonId}</strong> · unique entries <strong>{meta.uniqueEntries}</strong> · topN{' '}
               <strong>{meta.topN}</strong>
-            </li>
-            <li>
-              Gameweeks stored: <strong>{meta.gameweeks.join(', ') || '—'}</strong>
             </li>
             <li>
               Fetched <strong>{new Date(meta.fetchedAt).toLocaleString()}</strong>
@@ -141,7 +173,7 @@ export function EliteSamplePage() {
             Overlap depth:{' '}
             {overlapCounts.map(([depth, count]) => `${count} in ${depth} league(s)`).join(' · ') || '—'}
           </p>
-        </section>
+        </Collapsible>
       ) : null}
 
       {entries.length === 0 && !busy ? (
@@ -152,7 +184,15 @@ export function EliteSamplePage() {
       ) : null}
 
       {entries.length > 0 ? (
-        <EliteClusterPanel entries={entries} playersById={playersById} teamsById={teamsById} />
+        <EliteClusterPanel
+          entries={entries}
+          clustering={clustering}
+          playersById={playersById}
+          teamsById={teamsById}
+          onSelectEntry={setSelectedId}
+          activeGw={activeGw}
+          onActiveGwChange={setActiveGw}
+        />
       ) : null}
 
       {entries.length > 0 ? (
@@ -161,6 +201,7 @@ export function EliteSamplePage() {
             caption="Merged elite entries (sorted by total points)"
             defaultSort={{ id: 'pts', direction: 'desc' }}
             rowKey={(row) => row.entryId}
+            rowStyle={(row) => entryClusterRowStyle(row, clustering, activeGw)}
             columns={[
               {
                 id: 'id',
@@ -176,7 +217,11 @@ export function EliteSamplePage() {
                 id: 'name',
                 label: 'Team',
                 sortValue: (row) => row.entryName,
-                render: (row) => row.entryName,
+                render: (row) => (
+                  <button type="button" className="fpl-gw0-route-link" onClick={() => setSelectedId(row.entryId)}>
+                    {row.entryName}
+                  </button>
+                ),
               },
               {
                 id: 'pts',
@@ -184,6 +229,16 @@ export function EliteSamplePage() {
                 sortValue: (row) => row.totalPoints,
                 render: (row) => row.totalPoints,
               },
+              ...clusterGameweeks.map((gw) => ({
+                id: `gw${gw}`,
+                label: `GW${gw}`,
+                sortValue: (row: EliteEntryRecord) =>
+                  clustering.byGw.find((g) => g.gw === gw)?.assignment[row.entryId] ?? -1,
+                render: (row: EliteEntryRecord) => {
+                  const id = clustering.byGw.find((g) => g.gw === gw)?.assignment[row.entryId]
+                  return <ClusterBadge clusterId={id} label={clusterLabel(id, gw)} />
+                },
+              })),
               {
                 id: 'leagues',
                 label: 'Leagues',
@@ -191,28 +246,74 @@ export function EliteSamplePage() {
                 render: (row) =>
                   row.leagues.map((league) => `${league.leagueName}#${league.position}`).join(' · '),
               },
-              {
-                id: 'gws',
-                label: 'GWs stored',
-                sortValue: (row) => row.gameweeks.length,
-                render: (row) => row.gameweeks.length,
-              },
             ]}
             rows={entries.slice(0, 100)}
             empty="No rows"
           />
-          <p className="fpl-explorer__meta">Showing first 100 of {entries.length} for the table.</p>
+          <p className="fpl-explorer__meta">
+            Showing first 100 of {entries.length}. Click a team to open its pitch below. Row tint follows the selected
+            GW cluster colour.
+          </p>
 
           {selected ? (
-            <section className="fpl-perfect-summary">
-              <h2 className="fpl-explorer__title">
-                Dictionary preview · {selected.entryName} ({selected.entryId})
-              </h2>
+            <EliteEntryPitch
+              key={selected.entryId}
+              entry={selected}
+              playersById={playersById}
+              teamsById={teamsById}
+              clustering={clustering}
+              initialGw={activeGw}
+            />
+          ) : null}
+
+          {selected ? (
+            <Collapsible
+              title={`Dictionary JSON · ${selected.entryName} (${selected.entryId})`}
+              open={dictOpen}
+              onToggle={() => setDictOpen((value) => !value)}
+            >
               <pre className="fpl-elite-dict-preview">{JSON.stringify(dictionary[selected.entryId], null, 2)}</pre>
-            </section>
+            </Collapsible>
           ) : null}
         </>
       ) : null}
     </ExplorerScreen>
+  )
+}
+
+function emptyClustering(): EliteClusteringResult {
+  return { byGw: [], transitions: [] }
+}
+
+function entryClusterRowStyle(
+  entry: EliteEntryRecord,
+  clustering: EliteClusteringResult,
+  activeGw: number | null,
+): CSSProperties | undefined {
+  if (activeGw == null) return undefined
+  const clusterId = clustering.byGw.find((row) => row.gw === activeGw)?.assignment[entry.entryId]
+  if (clusterId == null) return undefined
+  return { ['--fpl-team' as string]: eliteClusterColor(clusterId) }
+}
+
+function Collapsible({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <section className="fpl-elite-collapse">
+      <button type="button" className="fpl-elite-collapse__toggle" onClick={onToggle} aria-expanded={open}>
+        <span aria-hidden>{open ? '▼' : '▶'}</span>
+        {title}
+      </button>
+      {open ? <div className="fpl-elite-collapse__body">{children}</div> : null}
+    </section>
   )
 }
