@@ -6,10 +6,13 @@ import {
   resetEliteTopNSample,
   type EliteSampleProgress,
 } from '../data/eliteTopNSample'
+import { useFplData } from '../data/fplDataContext'
 import type { EliteEntryRecord, EliteSampleMeta } from '../data/types'
+import { EliteClusterPanel } from './EliteClusterPanel'
 import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
 
 export function EliteSamplePage() {
+  const { snapshot } = useFplData()
   const [meta, setMeta] = useState<EliteSampleMeta | null>(null)
   const [entries, setEntries] = useState<EliteEntryRecord[]>([])
   const [progress, setProgress] = useState<EliteSampleProgress | null>(null)
@@ -32,6 +35,14 @@ export function EliteSamplePage() {
   }, [])
 
   const dictionary = useMemo(() => eliteEntriesToDictionary(entries), [entries])
+  const playersById = useMemo(() => {
+    const map = new Map((snapshot?.players ?? []).map((player) => [player.id, player]))
+    return map
+  }, [snapshot])
+  const teamsById = useMemo(() => {
+    const map = new Map((snapshot?.teams ?? []).map((team) => [team.id, team]))
+    return map
+  }, [snapshot])
   const selected = entries.find((row) => row.entryId === selectedId) ?? entries[0] ?? null
   const overlapCounts = useMemo(() => {
     const counts = new Map<number, number>()
@@ -79,13 +90,13 @@ export function EliteSamplePage() {
   return (
     <ExplorerScreen
       kicker="Elite sample"
-      title="Top-N league dictionary"
-      question="Pull the top 200 from the largest classic leagues, merge overlaps, and store per-GW squads ready for clustering."
+      title="Top-N league clusters"
+      question="Pull the top 200 from the largest classic leagues, then cluster 15-man squads each gameweek and inspect transitions."
     >
       <p className="fpl-explorer__meta">
-        Phase 1 stops at the data dictionary (no clustering UI yet). Leagues default to Overall, Gameweek 1, Sky Sports,
-        and England when present on the seed entry. Each unique team stores total points, league memberships, and per-GW
-        XI / bench / captain / vice / chips.
+        Leagues default to Overall, Gameweek 1, Sky Sports, and England when present. Each unique team stores total
+        points, league memberships, and per-GW XI / bench / captain / vice / chips. Clustering uses Jaccard distance on
+        those 15-man sets (k-medoids, k≈6).
       </p>
 
       <div className="fpl-explorer__toolbar">
@@ -138,6 +149,10 @@ export function EliteSamplePage() {
           title="No elite sample yet"
           description="Collect top 200 from the largest classic leagues. This takes a few minutes (standings + per-entry picks)."
         />
+      ) : null}
+
+      {entries.length > 0 ? (
+        <EliteClusterPanel entries={entries} playersById={playersById} teamsById={teamsById} />
       ) : null}
 
       {entries.length > 0 ? (
@@ -198,15 +213,6 @@ export function EliteSamplePage() {
           ) : null}
         </>
       ) : null}
-
-      <section className="fpl-perfect-summary">
-        <h2 className="fpl-explorer__title">Next: clustering (not built yet)</h2>
-        <p className="fpl-explorer__meta">
-          Once this dictionary is warm, each gameweek becomes a binary ownership vector over the elite pool. We cluster
-          those vectors (GW1, GW2, GW3 separately), then draw transition flows between cluster ids week to week. See the
-          chat hand-off for the full method — this page only validates the raw sample.
-        </p>
-      </section>
     </ExplorerScreen>
   )
 }
