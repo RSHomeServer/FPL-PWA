@@ -6,6 +6,9 @@ describe('perfectTeamCache option keys', () => {
   it('keeps chips and pin combinations from colliding', () => {
     expect(optionsFingerprint({ useChips: false })).not.toBe(optionsFingerprint({ useChips: true }))
     expect(optionsFingerprint({ lockedCodes: [3, 1] })).toBe(optionsFingerprint({ lockedCodes: [1, 3] }))
+    expect(optionsFingerprint({ objective: 'gw-points' })).not.toBe(
+      optionsFingerprint({ objective: 'overall-points' }),
+    )
     expect(dynamicCacheId('2025-26', 'r1', { useChips: false })).not.toBe(
       dynamicCacheId('2025-26', 'r1', { useChips: true }),
     )

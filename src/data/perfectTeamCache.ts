@@ -1,6 +1,6 @@
 import { getFplCacheDb } from './db'
 import type { DynamicStrategy } from '../analysis/perfectSeason'
-import type { PerfectGwTeam, PerfectTeamCostMode } from '../analysis/perfectTeam'
+import type { PerfectGwTeam, PerfectTeamCostMode, PerfectTeamObjective } from '../analysis/perfectTeam'
 
 export type PerfectDynamicCacheRecord = {
   id: string
@@ -24,17 +24,19 @@ export type PerfectCacheOptionFlags = {
   lockedCodes?: readonly number[]
   excludedCodes?: readonly number[]
   costMode?: PerfectTeamCostMode
+  objective?: PerfectTeamObjective
 }
 
 const DYNAMIC_VERSION = 'v4'
-const STATIC_VERSION = 'v3'
+const STATIC_VERSION = 'v4'
 
 export function optionsFingerprint(flags: PerfectCacheOptionFlags = {}): string {
   const chips = flags.useChips ? 'chips' : 'nochips'
   const cost = flags.costMode ?? 'gw-price'
+  const objective = flags.objective ?? 'gw-points'
   const locks = uniqueSorted(flags.lockedCodes).join(',')
   const excl = uniqueSorted(flags.excludedCodes).join(',')
-  return `${chips}:${cost}:L${locks}:X${excl}`
+  return `${chips}:${cost}:${objective}:L${locks}:X${excl}`
 }
 
 export function dynamicCacheId(

@@ -12,7 +12,9 @@ import {
   type HindsightPlayer,
   type PerfectGwTeam,
   type PerfectTeamCostMode,
+  type PerfectTeamObjective,
 } from '../analysis/perfectTeam'
+import { PerfectSquadPointsChart } from '../components/PerfectSquadPointsChart'
 import { openingOverlap, solveHistoricalGw0Opening } from '../analysis/historicalGw0'
 import { GW0_SOLVER_NOTE } from '../analysis/gw0Solver'
 import { isSquadInfeasibleError } from '../analysis/gw0Squad'
@@ -88,6 +90,7 @@ export function PerfectTeamPage() {
   const [showCost, setShowCost] = useState(false)
   const [useChips, setUseChips] = useState(false)
   const [costMode, setCostMode] = useState<PerfectTeamCostMode>('gw-price')
+  const [objective, setObjective] = useState<PerfectTeamObjective>('gw-points')
   const [pins, setPins] = useState<PerfectTeamPinsRecord>(emptyPerfectTeamPins(''))
   const [pinQuery, setPinQuery] = useState('')
   const didDefaultSeason = useRef(false)
@@ -133,8 +136,9 @@ export function PerfectTeamPage() {
       lockedCodes: pins.lockedCodes,
       excludedCodes: pins.excludedCodes,
       costMode,
+      objective,
     }),
-    [useChips, pins.lockedCodes, pins.excludedCodes, costMode],
+    [useChips, pins.lockedCodes, pins.excludedCodes, costMode, objective],
   )
 
   useEffect(() => {
@@ -150,6 +154,7 @@ export function PerfectTeamPage() {
         }
         const team = await solvePerfectGwTeam(snapshot, selectedGw, {
           costMode,
+          objective,
           lockedCodes: pins.lockedCodes,
           excludedCodes: pins.excludedCodes,
         })
@@ -176,6 +181,7 @@ export function PerfectTeamPage() {
     noPlayedGwMessage,
     cacheFlags,
     costMode,
+    objective,
     pins.lockedCodes,
     pins.excludedCodes,
   ])
@@ -348,6 +354,8 @@ export function PerfectTeamPage() {
           onUseChips={setUseChips}
           costMode={costMode}
           onCostMode={setCostMode}
+          objective={objective}
+          onObjective={setObjective}
           pins={pins}
           pinQuery={pinQuery}
           onPinQuery={setPinQuery}
@@ -389,8 +397,20 @@ export function PerfectTeamPage() {
           ) : null}
 
           {staticState.status === 'ready' ? (
-            <PerfectTeamPanel
-              label={`Perfect GW${staticState.team.round} · ${staticState.team.formation}`}
+            <>
+              {objective === 'overall-points' ? (
+                <PerfectSquadPointsChart
+                  title={`Best 15 by overall points through GW${staticState.team.round} · ${staticState.team.formation}`}
+                  rows={squadChartRows(staticState.team)}
+                  note="Legal £100m / max-3-per-club 15 maximising cumulative season points through this GW (XI + captain bonus). Bars ordered by overall points."
+                />
+              ) : null}
+              <PerfectTeamPanel
+              label={
+                objective === 'overall-points'
+                  ? `Overall-points 15 · GW${staticState.team.round} · ${staticState.team.formation}`
+                  : `Perfect GW${staticState.team.round} · ${staticState.team.formation}`
+              }
               formation={staticState.team.formation}
               squad={staticState.team.squad}
               xi={staticState.team.xi}
@@ -408,7 +428,9 @@ export function PerfectTeamPage() {
               onShowDetails={setShowDetails}
               onShowCost={setShowCost}
               chips={[]}
+              pointsLabel={objective === 'overall-points' ? 'Overall pts' : 'GW pts'}
             />
+            </>
           ) : null}
             </>
           )}
@@ -553,6 +575,8 @@ function PerfectTeamControls({
   onUseChips,
   costMode,
   onCostMode,
+  objective,
+  onObjective,
   pins,
   pinQuery,
   onPinQuery,
@@ -568,6 +592,8 @@ function PerfectTeamControls({
   onUseChips: (value: boolean) => void
   costMode: PerfectTeamCostMode
   onCostMode: (value: PerfectTeamCostMode) => void
+  objective: PerfectTeamObjective
+  onObjective: (value: PerfectTeamObjective) => void
   pins: PerfectTeamPinsRecord
   pinQuery: string
   onPinQuery: (value: string) => void
@@ -615,15 +641,33 @@ function PerfectTeamControls({
           </label>
         ) : null}
         {mode === 'static' ? (
-          <Label className="fpl-explorer__field">
-            Cost mode
-            <Select value={costMode} onChange={(event) => onCostMode(event.target.value as PerfectTeamCostMode)}>
-              <option value="gw-price">GW price</option>
-              <option value="opening">Opening price</option>
-            </Select>
-          </Label>
+          <>
+            <Label className="fpl-explorer__field">
+              Objective
+              <Select
+                value={objective}
+                onChange={(event) => onObjective(event.target.value as PerfectTeamObjective)}
+              >
+                <option value="gw-points">GW points</option>
+                <option value="overall-points">Overall points (chart)</option>
+              </Select>
+            </Label>
+            <Label className="fpl-explorer__field">
+              Cost mode
+              <Select value={costMode} onChange={(event) => onCostMode(event.target.value as PerfectTeamCostMode)}>
+                <option value="gw-price">GW price</option>
+                <option value="opening">Opening price</option>
+              </Select>
+            </Label>
+          </>
         ) : null}
       </div>
+      {mode === 'static' && objective === 'overall-points' ? (
+        <p className="fpl-explorer__meta">
+          Overall-points mode maximises cumulative season points through the selected GW (legal 15), then charts that
+          squad.
+        </p>
+      ) : null}
       {mode === 'dynamic' && !useChips ? (
         <p className="fpl-explorer__meta">Chips off — season totals exclude TC/BB bonus (transfer/hit path only).</p>
       ) : null}
@@ -958,6 +1002,7 @@ function PerfectTeamPanel({
   onShowDetails,
   onShowCost,
   chips,
+  pointsLabel = 'GW pts',
 }: {
   label: string
   formation: string
@@ -978,6 +1023,7 @@ function PerfectTeamPanel({
   onShowDetails: (value: boolean) => void
   onShowCost: (value: boolean) => void
   chips: ChipUse[]
+  pointsLabel?: string
 }) {
   const hasTc = chips.some((chip) => chip.chip === 'triple-captain')
   const hasBb = chips.some((chip) => chip.chip === 'bench-boost')
@@ -997,7 +1043,8 @@ function PerfectTeamPanel({
       <div className="fpl-perfect-panel__head">
         <h2 className="fpl-explorer__title">{label}</h2>
         <p className="fpl-explorer__meta">
-          {totalPoints} pts · {formatPerfectSpend(spendTenths)} spent · {formatGbpFromTenths(1000 - spendTenths)} ITB
+          {totalPoints} {pointsLabel.toLowerCase()} · {formatPerfectSpend(spendTenths)} spent ·{' '}
+          {formatGbpFromTenths(1000 - spendTenths)} ITB
           {weekChip ? ` · ${weekChip}` : ''}
         </p>
       </div>
@@ -1087,7 +1134,7 @@ function PerfectTeamPanel({
           },
           {
             id: 'pts',
-            label: 'Pts',
+            label: pointsLabel,
             sortValue: (row) => row.player.gwPoints,
             render: (row) => row.player.gwPoints,
           },
@@ -1103,6 +1150,16 @@ function PerfectTeamPanel({
       />
     </section>
   )
+}
+
+function squadChartRows(team: PerfectGwTeam) {
+  return team.squad.map((player) => {
+    let role: 'XI' | 'BN' | 'C' | 'VC' = 'BN'
+    if (player.code === team.captain.code) role = 'C'
+    else if (player.code === team.viceCaptain.code) role = 'VC'
+    else if (team.xi.some((row) => row.code === player.code)) role = 'XI'
+    return { player, points: player.gwPoints, role }
+  })
 }
 
 function toPitchPlayer(

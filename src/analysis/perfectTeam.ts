@@ -46,20 +46,26 @@ export type PerfectGwTeam = {
 
 export type PerfectTeamCostMode = 'gw-price' | 'opening'
 
+/** What the static Perfect Team MILP maximises. */
+export type PerfectTeamObjective = 'gw-points' | 'overall-points'
+
 export type PerfectTeamSolveOptions = {
   costMode?: PerfectTeamCostMode
+  /** Default `gw-points` (that gameweek’s haul). */
+  objective?: PerfectTeamObjective
   lockedCodes?: readonly number[]
   excludedCodes?: readonly number[]
 }
 
 function resolveSolveOptions(
   costModeOrOptions: PerfectTeamCostMode | PerfectTeamSolveOptions = 'gw-price',
-): Required<Pick<PerfectTeamSolveOptions, 'costMode'>> & SquadPins {
+): Required<Pick<PerfectTeamSolveOptions, 'costMode' | 'objective'>> & SquadPins {
   if (typeof costModeOrOptions === 'string') {
-    return { costMode: costModeOrOptions, lockedCodes: [], excludedCodes: [] }
+    return { costMode: costModeOrOptions, objective: 'gw-points', lockedCodes: [], excludedCodes: [] }
   }
   return {
     costMode: costModeOrOptions.costMode ?? 'gw-price',
+    objective: costModeOrOptions.objective ?? 'gw-points',
     lockedCodes: costModeOrOptions.lockedCodes ?? [],
     excludedCodes: costModeOrOptions.excludedCodes ?? [],
   }
@@ -70,6 +76,7 @@ export function buildHindsightPool(
   snapshot: SeasonSnapshot,
   round: number,
   costMode: PerfectTeamCostMode = 'gw-price',
+  objective: PerfectTeamObjective = 'gw-points',
 ): HindsightPlayer[] {
   const teams = teamById(snapshot.teams)
   const perfByPlayer = new Map<number, FplPerformance>()
@@ -77,6 +84,8 @@ export function buildHindsightPool(
     if (row.round === round) perfByPlayer.set(row.playerId, row)
   }
   const openingByPlayer = openingCostByPlayer(snapshot)
+  const overallByPlayer =
+    objective === 'overall-points' ? cumulativePointsByPlayer(snapshot, round) : null
 
   const pool: HindsightPlayer[] = []
   for (const player of snapshot.players) {
@@ -86,6 +95,10 @@ export function buildHindsightPool(
       costMode === 'opening'
         ? (openingByPlayer.get(player.id) ?? player.nowCostTenths)
         : (perf?.valueTenths ?? openingByPlayer.get(player.id) ?? player.nowCostTenths)
+    const gwPoints =
+      objective === 'overall-points'
+        ? (overallByPlayer?.get(player.id) ?? 0)
+        : (perf?.totalPoints ?? 0)
     pool.push({
       code: player.code,
       playerId: player.id,
@@ -95,11 +108,24 @@ export function buildHindsightPool(
       teamCode: team?.code ?? 0,
       teamShortName: team?.shortName ?? team?.name ?? '?',
       costTenths,
-      gwPoints: perf?.totalPoints ?? 0,
+      gwPoints,
       performance: perf,
     })
   }
   return pool
+}
+
+/** Season points from GW1 through `throughGw` (inclusive), summed across fixtures. */
+export function cumulativePointsByPlayer(
+  snapshot: SeasonSnapshot,
+  throughGw: number,
+): Map<number, number> {
+  const map = new Map<number, number>()
+  for (const row of snapshot.performances) {
+    if (row.round < 1 || row.round > throughGw) continue
+    map.set(row.playerId, (map.get(row.playerId) ?? 0) + row.totalPoints)
+  }
+  return map
 }
 
 export function openingCostByPlayer(snapshot: SeasonSnapshot): Map<number, number> {
@@ -132,7 +158,7 @@ export async function solvePerfectGwTeam(
   costModeOrOptions: PerfectTeamCostMode | PerfectTeamSolveOptions = 'gw-price',
 ): Promise<PerfectGwTeam> {
   const opts = resolveSolveOptions(costModeOrOptions)
-  const pool = buildHindsightPool(snapshot, round, opts.costMode)
+  const pool = buildHindsightPool(snapshot, round, opts.costMode, opts.objective)
   if (pool.length < 15) {
     throw new Error(`Only ${pool.length} players in pool for GW${round}`)
   }

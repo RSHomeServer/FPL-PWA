@@ -153,6 +153,129 @@ describe('perfectTeam lineup', () => {
     expect(pool).toHaveLength(1)
     expect(pool[0]?.gwPoints).toBe(6)
     expect(pool[0]?.costTenths).toBe(81)
+
+    const overall = buildHindsightPool(snapshot, 1, 'gw-price', 'overall-points')
+    expect(overall[0]?.gwPoints).toBe(6)
+  })
+
+  it('sums cumulative points for overall-points objective', () => {
+    const snapshot: SeasonSnapshot = {
+      meta: {
+        seasonId: '2023-24',
+        kind: 'historical',
+        fetchedAt: 0,
+        sourceRevision: 'test',
+        etags: {},
+        playerCount: 1,
+        teamCount: 1,
+        fixtureCount: 0,
+        performanceCount: 2,
+      },
+      players: [
+        {
+          seasonId: '2023-24',
+          id: 10,
+          code: 100,
+          firstName: 'Test',
+          secondName: 'Player',
+          webName: 'Tester',
+          teamId: 1,
+          position: 'FWD',
+          nowCostTenths: 80,
+          totalPoints: 14,
+          minutes: 180,
+          goalsScored: 2,
+          assists: 0,
+          form: 0,
+          selectedByPercent: 0,
+        },
+      ],
+      teams: [
+        {
+          seasonId: '2023-24',
+          id: 1,
+          code: 11,
+          name: 'Test FC',
+          shortName: 'TFC',
+          strength: 3,
+          strengthAttackHome: 1000,
+          strengthAttackAway: 1000,
+          strengthDefenceHome: 1000,
+          strengthDefenceAway: 1000,
+        },
+      ],
+      fixtures: [],
+      performances: [
+        {
+          seasonId: '2023-24',
+          playerId: 10,
+          round: 1,
+          fixture: 1,
+          minutes: 90,
+          totalPoints: 6,
+          goalsScored: 1,
+          assists: 0,
+          cleanSheets: 0,
+          saves: 0,
+          bonus: 0,
+          bps: 10,
+          goalsConceded: 0,
+          ownGoals: 0,
+          penaltiesMissed: 0,
+          penaltiesSaved: 0,
+          yellowCards: 0,
+          redCards: 0,
+          starts: 1,
+          expectedGoals: 0,
+          expectedAssists: 0,
+          expectedGoalInvolvements: 0,
+          expectedPoints: null,
+          defensiveContribution: null,
+          gwPosition: 'FWD',
+          wasHome: true,
+          opponentTeamId: 2,
+          valueTenths: 80,
+          kickoffTime: '',
+          teamName: 'TFC',
+        },
+        {
+          seasonId: '2023-24',
+          playerId: 10,
+          round: 2,
+          fixture: 2,
+          minutes: 90,
+          totalPoints: 8,
+          goalsScored: 1,
+          assists: 0,
+          cleanSheets: 0,
+          saves: 0,
+          bonus: 0,
+          bps: 12,
+          goalsConceded: 0,
+          ownGoals: 0,
+          penaltiesMissed: 0,
+          penaltiesSaved: 0,
+          yellowCards: 0,
+          redCards: 0,
+          starts: 1,
+          expectedGoals: 0,
+          expectedAssists: 0,
+          expectedGoalInvolvements: 0,
+          expectedPoints: null,
+          defensiveContribution: null,
+          gwPosition: 'FWD',
+          wasHome: false,
+          opponentTeamId: 2,
+          valueTenths: 81,
+          kickoffTime: '',
+          teamName: 'TFC',
+        },
+      ],
+    }
+    const gw2 = buildHindsightPool(snapshot, 2, 'gw-price', 'gw-points')
+    expect(gw2[0]?.gwPoints).toBe(8)
+    const overall = buildHindsightPool(snapshot, 2, 'gw-price', 'overall-points')
+    expect(overall[0]?.gwPoints).toBe(14)
   })
 })
 
