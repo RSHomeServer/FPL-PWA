@@ -16,6 +16,10 @@ import {
   type EliteLpObjective,
   type EliteOwnershipLpResult,
 } from '../analysis/eliteOwnershipLp'
+import {
+  enrichElitePitchPlayer,
+  type ElitePitchEnrichment,
+} from '../analysis/elitePitchEnrichment'
 import type { HindsightPlayer } from '../analysis/perfectTeam'
 import { FplPitch, type PitchPlayer } from '../components/FplPitch'
 import { PlayerLabel, TeamLabel } from '../components/FplMedia'
@@ -73,6 +77,18 @@ export function EliteSamplePage() {
     const map = new Map((snapshot?.teams ?? []).map((team) => [team.id, team]))
     return map
   }, [snapshot])
+
+  const pitchEnrichment = useMemo((): ElitePitchEnrichment | null => {
+    if (!snapshot) return null
+    return {
+      playersById,
+      teamsById,
+      fixtures: snapshot.fixtures,
+      performances: snapshot.performances,
+      upcomingLimit: 4,
+      historyLimit: 6,
+    }
+  }, [snapshot, playersById, teamsById])
 
   const clustering = useMemo(
     () => (entries.length ? clusterEliteEntries(entries, { k: 6, minMembers: 8 }) : emptyClustering()),
@@ -314,13 +330,26 @@ export function EliteSamplePage() {
                 <FplPitch
                   formation={lpResult.team.formation}
                   players={lpResult.team.xi.map((player) =>
-                    hindsightToPitch(player, lpResult.team.captain.code, lpResult.team.viceCaptain.code, false),
+                    hindsightToPitch(
+                      player,
+                      lpResult.team.captain.code,
+                      lpResult.team.viceCaptain.code,
+                      false,
+                      pitchEnrichment,
+                    ),
                   )}
                   bench={lpResult.team.bench.map((player) =>
-                    hindsightToPitch(player, lpResult.team.captain.code, lpResult.team.viceCaptain.code, true),
+                    hindsightToPitch(
+                      player,
+                      lpResult.team.captain.code,
+                      lpResult.team.viceCaptain.code,
+                      true,
+                      pitchEnrichment,
+                    ),
                   )}
                   label={`Elite LP · GW${lpResult.gw} · ${lpResult.team.formation}`}
                   showCost
+                  showDetails
                   compact
                   expandable
                 />
@@ -577,6 +606,7 @@ export function EliteSamplePage() {
               teamsById={teamsById}
               clustering={clustering}
               initialGw={activeGw}
+              enrichment={pitchEnrichment}
             />
           ) : null}
 
@@ -637,8 +667,9 @@ function hindsightToPitch(
   captainCode: number,
   viceCode: number,
   onBench: boolean,
+  enrichment: ElitePitchEnrichment | null,
 ): PitchPlayer {
-  return {
+  const base: PitchPlayer = {
     id: player.code,
     name: player.webName,
     photoCode: player.code,
@@ -651,6 +682,7 @@ function hindsightToPitch(
     pointsUnscored: onBench,
     costLabel: formatGbpFromTenths(player.costTenths),
   }
+  return enrichment ? enrichElitePitchPlayer(base, player.playerId, enrichment) : base
 }
 
 function roleOf(player: HindsightPlayer, result: EliteOwnershipLpResult): string {

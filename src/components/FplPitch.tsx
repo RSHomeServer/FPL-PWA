@@ -9,6 +9,14 @@ import {
 } from './fplPitchLayout'
 import './FplPitch.css'
 
+export type PitchFdrChip = {
+  /** Short opponent label, e.g. `AVLH` / `ARSA`. */
+  label: string
+  /** Official FPL fixture difficulty 1–5. */
+  fdr: number
+  event?: number | null
+}
+
 export type PitchPlayer = {
   id: string | number
   name: string
@@ -25,6 +33,14 @@ export type PitchPlayer = {
   pointsUnscored?: boolean
   /** Cost string shown above the head when `showCost` is on. */
   costLabel?: string
+  /** Compact form label (e.g. `F 6.2`). */
+  formLabel?: string
+  /** Compact recent GW points (e.g. `6·2·8`). */
+  historyLabel?: string
+  /** Tooltip for historyLabel. */
+  historyTitle?: string
+  /** Upcoming fixture difficulty chips. */
+  fdrChips?: readonly PitchFdrChip[]
   /** Score breakdown lines when `showDetails` is on. */
   scoreLines?: readonly string[]
   /** Extra badge (e.g. TC / BB). */
@@ -188,11 +204,17 @@ function PitchCard({
         ? player.scoreLines
         : ['Did not play']
       : null
+  const fdrChips = player.fdrChips ?? []
   return (
     <figure className={`fpl-pitch-card${player.pointsUnscored ? ' fpl-pitch-card--unscored' : ''}`}>
       {showCost && player.costLabel ? (
         <span className="fpl-pitch-card__cost" title="Price">
           {player.costLabel}
+        </span>
+      ) : null}
+      {player.formLabel ? (
+        <span className="fpl-pitch-card__form" title="Current form">
+          {player.formLabel}
         </span>
       ) : null}
       {player.captain ? (
@@ -232,9 +254,31 @@ function PitchCard({
         {hasPoints ? (
           <span
             className="fpl-pitch-card__points"
-            title={player.pointsUnscored ? 'Bench points (not counted unless Bench Boost)' : 'Gameweek points'}
+            title={
+              player.pointsUnscored
+                ? 'Bench points (not counted unless Bench Boost)'
+                : player.historyTitle ?? 'Latest gameweek points'
+            }
           >
             {player.points}
+          </span>
+        ) : null}
+        {player.historyLabel ? (
+          <span className="fpl-pitch-card__history" title={player.historyTitle ?? 'Recent GW points'}>
+            {player.historyLabel}
+          </span>
+        ) : null}
+        {fdrChips.length > 0 ? (
+          <span className="fpl-pitch-card__fdr" title="Upcoming fixture difficulty (lower is easier)">
+            {fdrChips.map((chip) => (
+              <span
+                key={`${chip.label}-${chip.event ?? ''}`}
+                className={`fpl-pitch-card__fdr-chip fpl-pitch-card__fdr-chip--${fdrTone(chip.fdr)}`}
+                title={`GW${chip.event ?? '?'} ${chip.label} FDR ${chip.fdr}`}
+              >
+                {chip.fdr}
+              </span>
+            ))}
           </span>
         ) : null}
         {breakdown ? (
@@ -247,6 +291,12 @@ function PitchCard({
       </figcaption>
     </figure>
   )
+}
+
+function fdrTone(fdr: number): 'easy' | 'mid' | 'hard' {
+  if (fdr <= 2) return 'easy'
+  if (fdr >= 4) return 'hard'
+  return 'mid'
 }
 
 function PitchMarkings() {

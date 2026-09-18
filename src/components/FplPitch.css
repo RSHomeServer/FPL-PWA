@@ -262,9 +262,8 @@
 .fpl-pitch-card__cost {
   position: absolute;
   top: -1.15rem;
-  left: 50%;
+  left: 0;
   z-index: 3;
-  transform: translateX(-50%);
   padding: 0.08rem 0.28rem;
   border-radius: 0.2rem;
   background: rgb(255 255 255 / 92%);
@@ -274,6 +273,71 @@
   line-height: 1.1;
   white-space: nowrap;
   box-shadow: 0 0.08rem 0.16rem rgb(0 0 0 / 25%);
+}
+
+.fpl-pitch-card__form {
+  position: absolute;
+  top: -1.15rem;
+  right: 0;
+  z-index: 3;
+  padding: 0.08rem 0.28rem;
+  border-radius: 0.2rem;
+  background: rgb(15 23 42 / 88%);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-shadow: 0 0.08rem 0.16rem rgb(0 0 0 / 25%);
+}
+
+.fpl-pitch-card__history {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--fpl-pitch-muted);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.fpl-pitch-card__fdr {
+  display: flex;
+  justify-content: center;
+  gap: 0.12rem;
+  margin-top: 0.18rem;
+  flex-wrap: wrap;
+}
+
+.fpl-pitch-card__fdr-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.15rem;
+  border-radius: 0.15rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+
+.fpl-pitch-card__fdr-chip--easy {
+  background: #15803d;
+}
+
+.fpl-pitch-card__fdr-chip--mid {
+  background: #a16207;
+}
+
+.fpl-pitch-card__fdr-chip--hard {
+  background: #b91c1c;
+}
+
+.fpl-pitch--show-cost .fpl-pitch-card,
+.fpl-pitch-card:has(.fpl-pitch-card__form) {
+  margin-top: 1.15rem;
 }
 
 .fpl-pitch-card__plate {

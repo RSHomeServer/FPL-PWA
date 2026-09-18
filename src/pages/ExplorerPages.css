@@ -1062,6 +1062,10 @@
   margin: 0;
 }
 
+.fpl-elite-entry-pitch__runs {
+  margin-top: 0.75rem;
+}
+
 .fpl-elite-ownership {
   display: grid;
   gap: var(--space-3, 0.75rem);

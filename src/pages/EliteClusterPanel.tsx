@@ -7,6 +7,11 @@ import {
   type EliteGwCluster,
   type EliteGwClustering,
 } from '../analysis/eliteCluster'
+import {
+  enrichElitePitchPlayer,
+  meanUpcomingFdr,
+  type ElitePitchEnrichment,
+} from '../analysis/elitePitchEnrichment'
 import { FplPitch, type PitchPlayer } from '../components/FplPitch'
 import { PlayerPhoto, TeamCrest } from '../components/FplMedia'
 import { pitchLineOf } from '../components/fplPitchLayout'
@@ -681,12 +686,14 @@ export function EliteEntryPitch({
   teamsById,
   clustering,
   initialGw,
+  enrichment,
 }: {
   entry: EliteEntryRecord
   playersById: Map<number, FplPlayer>
   teamsById: Map<number, FplTeam>
   clustering: EliteClusteringResult
   initialGw?: number | null
+  enrichment?: ElitePitchEnrichment | null
 }) {
   const gws = entry.gameweeks.map((row) => row.gw).sort((a, b) => a - b)
   const [gw, setGw] = useState(() => {
@@ -703,8 +710,20 @@ export function EliteEntryPitch({
 
   const { formation, xi, bench } = useMemo(() => {
     if (!squad) return { formation: '3-4-3', xi: [] as PitchPlayer[], bench: [] as PitchPlayer[] }
-    return squadToPitch(squad, playersById, teamsById)
-  }, [squad, playersById, teamsById])
+    return squadToPitch(squad, playersById, teamsById, enrichment ?? null)
+  }, [squad, playersById, teamsById, enrichment])
+
+  const easiest = useMemo(() => {
+    const rows = [...xi, ...bench]
+      .map((player) => ({
+        name: player.name,
+        meanFdr: meanUpcomingFdr(player.fdrChips ?? []),
+        chips: player.fdrChips ?? [],
+      }))
+      .filter((row) => row.meanFdr != null)
+      .sort((a, b) => (a.meanFdr ?? 99) - (b.meanFdr ?? 99) || a.name.localeCompare(b.name))
+    return rows.slice(0, 8)
+  }, [xi, bench])
 
   const gwIndex = gws.indexOf(gw)
   const color = clusterId != null ? eliteClusterColor(clusterId) : undefined
@@ -726,37 +745,61 @@ export function EliteEntryPitch({
       </div>
 
       {squad ? (
-        <div className="fpl-perfect-pitch-nav">
-          <button
-            type="button"
-            className="fpl-perfect-pitch-nav__btn"
-            aria-label="Previous gameweek"
-            disabled={gwIndex <= 0}
-            onClick={() => setGw(gws[gwIndex - 1]!)}
-          >
-            ←
-          </button>
-          <div className="fpl-perfect-pitch-nav__pitch">
-            <FplPitch
-              formation={formation}
-              players={xi}
-              bench={bench}
-              label={`GW${gw} · ${formation}`}
-              weekChip={squad.activeChip}
-              compact
-              expandable
-            />
+        <>
+          <p className="fpl-explorer__meta">
+            Cards show price, form, recent GW points (latest as the badge), and upcoming FDR chips (green easy → red
+            hard). Expand the pitch for the full breakdown.
+          </p>
+          <div className="fpl-perfect-pitch-nav">
+            <button
+              type="button"
+              className="fpl-perfect-pitch-nav__btn"
+              aria-label="Previous gameweek"
+              disabled={gwIndex <= 0}
+              onClick={() => setGw(gws[gwIndex - 1]!)}
+            >
+              ←
+            </button>
+            <div className="fpl-perfect-pitch-nav__pitch">
+              <FplPitch
+                formation={formation}
+                players={xi}
+                bench={bench}
+                label={`GW${gw} · ${formation}`}
+                weekChip={squad.activeChip}
+                showCost
+                showDetails
+                compact
+                expandable
+              />
+            </div>
+            <button
+              type="button"
+              className="fpl-perfect-pitch-nav__btn"
+              aria-label="Next gameweek"
+              disabled={gwIndex < 0 || gwIndex >= gws.length - 1}
+              onClick={() => setGw(gws[gwIndex + 1]!)}
+            >
+              →
+            </button>
           </div>
-          <button
-            type="button"
-            className="fpl-perfect-pitch-nav__btn"
-            aria-label="Next gameweek"
-            disabled={gwIndex < 0 || gwIndex >= gws.length - 1}
-            onClick={() => setGw(gws[gwIndex + 1]!)}
-          >
-            →
-          </button>
-        </div>
+          {easiest.length > 0 ? (
+            <div className="fpl-elite-entry-pitch__runs">
+              <h3 className="fpl-elite-cluster-detail__sub">Easiest upcoming runs on this squad</h3>
+              <ul className="fpl-elite-cluster-detail__list">
+                {easiest.map((row) => (
+                  <li key={row.name}>
+                    <span>{row.name}</span>
+                    <span>
+                      avg FDR {row.meanFdr!.toFixed(1)} ·{' '}
+                      {row.chips.map((chip) => `${chip.label}${chip.fdr}`).join(' ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
       ) : (
         <p className="fpl-explorer__meta">No squad stored for GW{gw}.</p>
       )}
@@ -768,16 +811,16 @@ function squadToPitch(
   squad: EliteGameweekSquad,
   playersById: Map<number, FplPlayer>,
   teamsById: Map<number, FplTeam>,
+  enrichment: ElitePitchEnrichment | null,
 ): { formation: string; xi: PitchPlayer[]; bench: PitchPlayer[] } {
   const counts = { DEF: 0, MID: 0, FWD: 0 }
-  const xi: PitchPlayer[] = []
-  for (const elementId of squad.xi) {
+  const ctx = enrichment
+
+  function toCard(elementId: number, onBench: boolean): PitchPlayer {
     const player = playersById.get(elementId)
     const team = player ? teamsById.get(player.teamId) : undefined
     const position = player?.position ?? 'MID'
-    const line = pitchLineOf(position)
-    if (line === 'DEF' || line === 'MID' || line === 'FWD') counts[line] += 1
-    xi.push({
+    const base: PitchPlayer = {
       id: elementId,
       name: player?.webName ?? `#${elementId}`,
       photoCode: player?.code,
@@ -787,25 +830,21 @@ function squadToPitch(
       captain: elementId === squad.captainElementId,
       viceCaptain: elementId === squad.viceCaptainElementId,
       points: null,
-    })
+      pointsUnscored: onBench,
+    }
+    return ctx ? enrichElitePitchPlayer(base, elementId, ctx) : base
   }
 
-  const bench: PitchPlayer[] = squad.bench.map((elementId) => {
+  const xi: PitchPlayer[] = []
+  for (const elementId of squad.xi) {
     const player = playersById.get(elementId)
-    const team = player ? teamsById.get(player.teamId) : undefined
-    return {
-      id: elementId,
-      name: player?.webName ?? `#${elementId}`,
-      photoCode: player?.code,
-      teamCode: team?.code,
-      teamShortName: team?.shortName,
-      position: player?.position ?? 'MID',
-      captain: elementId === squad.captainElementId,
-      viceCaptain: elementId === squad.viceCaptainElementId,
-      points: null,
-      pointsUnscored: true,
-    }
-  })
+    const position = player?.position ?? 'MID'
+    const line = pitchLineOf(position)
+    if (line === 'DEF' || line === 'MID' || line === 'FWD') counts[line] += 1
+    xi.push(toCard(elementId, false))
+  }
+
+  const bench: PitchPlayer[] = squad.bench.map((elementId) => toCard(elementId, true))
 
   const outfield = counts.DEF + counts.MID + counts.FWD
   const formationLabel =
