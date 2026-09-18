@@ -801,6 +801,7 @@ function squadToPitch(
     }
   })
 
+  const outfield = counts.DEF + counts.MID + counts.FWD
   const formationLabel =
     outfield === 10 ? `${counts.DEF}-${counts.MID}-${counts.FWD}` : '3-4-3'
 
