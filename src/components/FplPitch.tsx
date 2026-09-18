@@ -15,6 +15,9 @@ export type PitchFdrChip = {
   /** Official FPL fixture difficulty 1–5. */
   fdr: number
   event?: number | null
+  /** Opponent club crest code for the logo row under FDR. */
+  opponentTeamCode?: number
+  opponentShortName?: string
 }
 
 export type PitchPlayer = {
@@ -198,23 +201,19 @@ function PitchCard({
   const faceSize = expanded ? 72 : 60
   const crestSize = expanded ? 20 : 18
   const hasPoints = player.points != null && Number.isFinite(player.points)
+  const fdrChips = player.fdrChips ?? []
+  const chipSize = expanded ? 16 : 14
   const breakdown =
     showDetails && player.scoreLines
       ? player.scoreLines.length > 0
         ? player.scoreLines
         : ['Did not play']
       : null
-  const fdrChips = player.fdrChips ?? []
   return (
     <figure className={`fpl-pitch-card${player.pointsUnscored ? ' fpl-pitch-card--unscored' : ''}`}>
       {showCost && player.costLabel ? (
         <span className="fpl-pitch-card__cost" title="Price">
           {player.costLabel}
-        </span>
-      ) : null}
-      {player.formLabel ? (
-        <span className="fpl-pitch-card__form" title="Current form">
-          {player.formLabel}
         </span>
       ) : null}
       {player.captain ? (
@@ -263,22 +262,34 @@ function PitchCard({
             {player.points}
           </span>
         ) : null}
-        {player.historyLabel ? (
-          <span className="fpl-pitch-card__history" title={player.historyTitle ?? 'Recent GW points'}>
-            {player.historyLabel}
-          </span>
-        ) : null}
         {fdrChips.length > 0 ? (
-          <span className="fpl-pitch-card__fdr" title="Upcoming fixture difficulty (lower is easier)">
-            {fdrChips.map((chip) => (
-              <span
-                key={`${chip.label}-${chip.event ?? ''}`}
-                className={`fpl-pitch-card__fdr-chip fpl-pitch-card__fdr-chip--${fdrTone(chip.fdr)}`}
-                title={`GW${chip.event ?? '?'} ${chip.label} FDR ${chip.fdr}`}
-              >
-                {chip.fdr}
-              </span>
-            ))}
+          <span className="fpl-pitch-card__run" title="Upcoming FDR (top) and opponents (bottom)">
+            <span className="fpl-pitch-card__fdr">
+              {fdrChips.map((chip) => (
+                <span
+                  key={`fdr-${chip.label}-${chip.event ?? ''}`}
+                  className={`fpl-pitch-card__fdr-chip fpl-pitch-card__fdr-chip--${fdrTone(chip.fdr)}`}
+                  title={`GW${chip.event ?? '?'} ${chip.label} FDR ${chip.fdr}`}
+                >
+                  {chip.fdr}
+                </span>
+              ))}
+            </span>
+            <span className="fpl-pitch-card__opps">
+              {fdrChips.map((chip) => (
+                <span
+                  key={`opp-${chip.label}-${chip.event ?? ''}`}
+                  className="fpl-pitch-card__opp"
+                  title={`GW${chip.event ?? '?'} ${chip.opponentShortName ?? chip.label}`}
+                >
+                  <TeamCrest
+                    code={chip.opponentTeamCode ?? 0}
+                    name={chip.opponentShortName ?? chip.label}
+                    size={chipSize}
+                  />
+                </span>
+              ))}
+            </span>
           </span>
         ) : null}
         {breakdown ? (

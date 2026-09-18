@@ -8,14 +8,14 @@ export type ElitePitchEnrichment = {
   teamsById: Map<number, FplTeam>
   fixtures: readonly FplFixture[]
   performances: readonly FplPerformance[]
-  /** How many upcoming fixtures to show (default 4). */
+  /** How many upcoming fixtures to show (default 5). */
   upcomingLimit?: number
-  /** Cap history to recent GWs (default 6). */
+  /** Cap history used for the points badge (default 6). */
   historyLimit?: number
 }
 
 /**
- * Attach price, form, recent GW points, and upcoming FDR chips onto a pitch card.
+ * Attach price, latest GW points, and upcoming FDR + opponent crests onto a pitch card.
  */
 export function enrichElitePitchPlayer(
   base: PitchPlayer,
@@ -26,7 +26,7 @@ export function enrichElitePitchPlayer(
   const team = player ? ctx.teamsById.get(player.teamId) : undefined
   const history = playerGwPointHistory(ctx.performances, elementId, ctx.historyLimit ?? 6)
   const fdrChips = team
-    ? teamUpcomingFdrChips(ctx.fixtures, ctx.teamsById, team.id, ctx.upcomingLimit ?? 4)
+    ? teamUpcomingFdrChips(ctx.fixtures, ctx.teamsById, team.id, ctx.upcomingLimit ?? 5)
     : []
   const lastPts = history.length ? history[history.length - 1]!.points : null
 
@@ -38,25 +38,15 @@ export function enrichElitePitchPlayer(
     teamShortName: team?.shortName ?? base.teamShortName,
     position: player?.position ?? base.position,
     costLabel: player ? formatGbpFromTenths(player.nowCostTenths) : base.costLabel,
-    formLabel: player != null ? `F ${player.form.toFixed(1)}` : undefined,
-    historyLabel: history.length
-      ? history.map((row) => `${row.points}`).join('·')
-      : undefined,
     historyTitle: history.length
       ? history.map((row) => `GW${row.gw}: ${row.points}`).join(' · ')
       : undefined,
     fdrChips,
     points: lastPts,
     pointsUnscored: base.pointsUnscored,
-    scoreLines: [
-      ...(player != null ? [`Form ${player.form.toFixed(1)}`] : []),
-      ...(history.length
-        ? [`Pts ${history.map((row) => `GW${row.gw}:${row.points}`).join(' ')}`]
-        : []),
-      ...(fdrChips.length
-        ? [`FDR ${fdrChips.map((chip) => `${chip.label}${chip.fdr}`).join(' ')}`]
-        : ['FDR —']),
-    ],
+    formLabel: undefined,
+    historyLabel: undefined,
+    scoreLines: undefined,
   }
 }
 
@@ -64,7 +54,7 @@ export function teamUpcomingFdrChips(
   fixtures: readonly FplFixture[],
   teamsById: Map<number, FplTeam>,
   teamId: number,
-  limit = 4,
+  limit = 5,
 ): PitchFdrChip[] {
   return upcomingFixturesForTeam(fixtures, teamId, limit).map((fixture) => {
     const home = fixture.teamH === teamId
@@ -75,6 +65,8 @@ export function teamUpcomingFdrChips(
       label: `${opp?.shortName ?? '?'}${home ? 'H' : 'A'}`,
       fdr,
       event: fixture.event,
+      opponentTeamCode: opp?.code ?? 0,
+      opponentShortName: opp?.shortName ?? '?',
     }
   })
 }

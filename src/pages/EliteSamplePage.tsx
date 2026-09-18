@@ -85,7 +85,7 @@ export function EliteSamplePage() {
       teamsById,
       fixtures: snapshot.fixtures,
       performances: snapshot.performances,
-      upcomingLimit: 4,
+      upcomingLimit: 5,
       historyLimit: 6,
     }
   }, [snapshot, playersById, teamsById])
@@ -349,7 +349,6 @@ export function EliteSamplePage() {
                   )}
                   label={`Elite LP · GW${lpResult.gw} · ${lpResult.team.formation}`}
                   showCost
-                  showDetails
                   compact
                   expandable
                 />

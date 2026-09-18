@@ -747,8 +747,8 @@ export function EliteEntryPitch({
       {squad ? (
         <>
           <p className="fpl-explorer__meta">
-            Cards show price, form, recent GW points (latest as the badge), and upcoming FDR chips (green easy → red
-            hard). Expand the pitch for the full breakdown.
+            Each card shows latest GW points, next-5 FDR chips, and opponent crests underneath (same size). Green FDR =
+            easier.
           </p>
           <div className="fpl-perfect-pitch-nav">
             <button
@@ -768,7 +768,6 @@ export function EliteEntryPitch({
                 label={`GW${gw} · ${formation}`}
                 weekChip={squad.activeChip}
                 showCost
-                showDetails
                 compact
                 expandable
               />
@@ -792,7 +791,7 @@ export function EliteEntryPitch({
                     <span>{row.name}</span>
                     <span>
                       avg FDR {row.meanFdr!.toFixed(1)} ·{' '}
-                      {row.chips.map((chip) => `${chip.label}${chip.fdr}`).join(' ')}
+                      {row.chips.map((chip) => chip.opponentShortName ?? chip.label).join(' ')}
                     </span>
                   </li>
                 ))}

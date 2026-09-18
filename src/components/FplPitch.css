@@ -291,36 +291,47 @@
   box-shadow: 0 0.08rem 0.16rem rgb(0 0 0 / 25%);
 }
 
-.fpl-pitch-card__history {
-  display: block;
-  margin-top: 0.12rem;
-  color: var(--fpl-pitch-muted);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.15;
+.fpl-pitch-card__run {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.18rem;
+  justify-items: center;
 }
 
-.fpl-pitch-card__fdr {
+.fpl-pitch-card__fdr,
+.fpl-pitch-card__opps {
   display: flex;
   justify-content: center;
   gap: 0.12rem;
-  margin-top: 0.18rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.fpl-pitch-card__fdr-chip {
+.fpl-pitch-card__fdr-chip,
+.fpl-pitch-card__opp {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 0.95rem;
+  width: 0.95rem;
   height: 0.95rem;
-  padding: 0 0.15rem;
+  flex: 0 0 0.95rem;
   border-radius: 0.15rem;
+  overflow: hidden;
+}
+
+.fpl-pitch-card__fdr-chip {
   font-size: 0.58rem;
   font-weight: 800;
   line-height: 1;
   color: #fff;
+  padding: 0;
+}
+
+.fpl-pitch-card__opp .fpl-media,
+.fpl-pitch-card__opp .fpl-media--crest,
+.fpl-pitch-card__opp .fpl-media--crest-fallback {
+  width: 0.95rem !important;
+  height: 0.95rem !important;
+  min-width: 0.95rem;
 }
 
 .fpl-pitch-card__fdr-chip--easy {

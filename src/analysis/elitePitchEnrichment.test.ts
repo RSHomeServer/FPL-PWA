@@ -58,8 +58,8 @@ describe('teamUpcomingFdrChips', () => {
     ]
     const chips = teamUpcomingFdrChips(fixtures, teams, 1, 4)
     expect(chips).toEqual([
-      { label: 'AVLH', fdr: 2, event: 5 },
-      { label: 'BHAA', fdr: 2, event: 6 },
+      { label: 'AVLH', fdr: 2, event: 5, opponentTeamCode: 2, opponentShortName: 'AVL' },
+      { label: 'BHAA', fdr: 2, event: 6, opponentTeamCode: 3, opponentShortName: 'BHA' },
     ])
     expect(meanUpcomingFdr(chips)).toBe(2)
   })
