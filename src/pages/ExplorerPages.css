@@ -1062,6 +1062,11 @@
   margin: 0;
 }
 
+.fpl-elite-ownership {
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+}
+
 .fpl-elite-cluster-card__chip em {
   font-style: normal;
   opacity: 0.8;

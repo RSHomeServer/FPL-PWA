@@ -5,6 +5,11 @@ import {
   eliteClusterColor,
   type EliteClusteringResult,
 } from '../analysis/eliteCluster'
+import {
+  eliteGameweekOwnership,
+  enrichOwnershipRow,
+} from '../analysis/eliteOwnership'
+import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { eliteEntriesToDictionary, readAllEliteEntries, readEliteSampleMeta } from '../data/eliteEntryStore'
 import {
   collectEliteTopNSample,
@@ -12,6 +17,7 @@ import {
   type EliteSampleProgress,
 } from '../data/eliteTopNSample'
 import { useFplData } from '../data/fplDataContext'
+import { teamRowStyle } from '../data/teamColors'
 import type { EliteEntryRecord, EliteSampleMeta } from '../data/types'
 import { ClusterBadge, EliteClusterPanel, EliteEntryPitch } from './EliteClusterPanel'
 import { DataTable, ExplorerEmpty, ExplorerScreen } from './ExplorerScreen'
@@ -57,6 +63,19 @@ export function EliteSamplePage() {
     () => (entries.length ? clusterEliteEntries(entries, { k: 6, minMembers: 8 }) : emptyClustering()),
     [entries],
   )
+
+  const ownershipBoard = useMemo(() => {
+    if (!entries.length || activeGw == null) return null
+    return eliteGameweekOwnership(entries, activeGw, 30)
+  }, [entries, activeGw])
+
+  const ownershipRows = useMemo(() => {
+    if (!ownershipBoard || !snapshot) return []
+    return ownershipBoard.rows.map((row, index) => ({
+      ...enrichOwnershipRow(row, playersById.get(row.elementId), snapshot.performances, ownershipBoard.gw),
+      rank: index + 1,
+    }))
+  }, [ownershipBoard, playersById, snapshot])
 
   const selected = entries.find((row) => row.entryId === selectedId) ?? null
   const overlapCounts = useMemo(() => {
@@ -195,6 +214,133 @@ export function EliteSamplePage() {
         />
       ) : null}
 
+      {ownershipBoard && ownershipRows.length > 0 ? (
+        <section className="fpl-elite-ownership">
+          <h2 className="fpl-explorer__title">Elite ownership · GW{ownershipBoard.gw}</h2>
+          <p className="fpl-explorer__meta">
+            Top 30 players by ownership across {ownershipBoard.sampleSize} elite sample teams with a stored squad this
+            week. Elite % is within this sample (not overall FPL). Official Sel% is bootstrap selected_by_percent.
+            GW pts / Prev GW pts come from the season performance snapshot.
+          </p>
+          <DataTable
+            caption={`Top 30 elite ownership · GW${ownershipBoard.gw}`}
+            defaultSort={{ id: 'own', direction: 'desc' }}
+            rowKey={(row) => row.elementId}
+            rowStyle={(row) => teamRowStyle(row.player ? teamsById.get(row.player.teamId) : null)}
+            columns={[
+              {
+                id: 'rank',
+                label: '#',
+                sortValue: (row) => row.rank,
+                render: (row) => row.rank,
+              },
+              {
+                id: 'player',
+                label: 'Player',
+                sortValue: (row) => row.player?.webName ?? String(row.elementId),
+                render: (row) => (
+                  <PlayerLabel
+                    player={
+                      row.player
+                        ? {
+                            code: row.player.code,
+                            webName: row.player.webName,
+                            firstName: row.player.firstName,
+                            secondName: row.player.secondName,
+                          }
+                        : undefined
+                    }
+                    name={row.player?.webName ?? `#${row.elementId}`}
+                  />
+                ),
+              },
+              {
+                id: 'pos',
+                label: 'Pos',
+                sortValue: (row) => row.player?.position ?? '',
+                render: (row) => row.player?.position ?? '—',
+              },
+              {
+                id: 'team',
+                label: 'Team',
+                sortValue: (row) => {
+                  const team = row.player ? teamsById.get(row.player.teamId) : undefined
+                  return team?.shortName ?? ''
+                },
+                render: (row) => {
+                  const team = row.player ? teamsById.get(row.player.teamId) : undefined
+                  return <TeamLabel team={team} name={team?.shortName} />
+                },
+              },
+              {
+                id: 'own',
+                label: 'Elite %',
+                sortValue: (row) => row.ownership,
+                render: (row) => `${(row.ownership * 100).toFixed(1)}%`,
+              },
+              {
+                id: 'n',
+                label: 'Owned',
+                sortValue: (row) => row.count,
+                render: (row) => `${row.count}/${row.sampleSize}`,
+              },
+              {
+                id: 'xi',
+                label: 'XI',
+                sortValue: (row) => row.xiCount,
+                render: (row) => row.xiCount,
+              },
+              {
+                id: 'cap',
+                label: 'Cap %',
+                sortValue: (row) => row.captaincy,
+                render: (row) => `${(row.captaincy * 100).toFixed(1)}%`,
+              },
+              {
+                id: 'sel',
+                label: 'Sel %',
+                sortValue: (row) => row.player?.selectedByPercent ?? -1,
+                render: (row) =>
+                  row.player != null ? `${row.player.selectedByPercent.toFixed(1)}%` : '—',
+              },
+              {
+                id: 'form',
+                label: 'Form',
+                sortValue: (row) => row.player?.form ?? -1,
+                render: (row) => (row.player != null ? row.player.form.toFixed(1) : '—'),
+              },
+              {
+                id: 'total',
+                label: 'Total',
+                sortValue: (row) => row.player?.totalPoints ?? -1,
+                render: (row) => row.player?.totalPoints ?? '—',
+              },
+              {
+                id: 'gwpts',
+                label: `GW${ownershipBoard.gw}`,
+                sortValue: (row) => row.gwPoints ?? -1,
+                render: (row) => row.gwPoints ?? '—',
+              },
+              {
+                id: 'prev',
+                label: ownershipBoard.gw > 1 ? `GW${ownershipBoard.gw - 1}` : 'Prev',
+                sortValue: (row) => row.prevGwPoints ?? -1,
+                render: (row) => row.prevGwPoints ?? '—',
+              },
+              {
+                id: 'price',
+                label: 'Price',
+                sortValue: (row) => row.player?.nowCostTenths ?? -1,
+                render: (row) =>
+                  row.player != null ? `£${(row.player.nowCostTenths / 10).toFixed(1)}` : '—',
+              },
+            ]}
+            rows={ownershipRows}
+            empty="No ownership rows"
+          />
+        </section>
+      ) : null}
+
       {entries.length > 0 ? (
         <>
           <DataTable
@@ -239,13 +385,6 @@ export function EliteSamplePage() {
                   return <ClusterBadge clusterId={id} label={clusterLabel(id, gw)} />
                 },
               })),
-              {
-                id: 'leagues',
-                label: 'Leagues',
-                sortValue: (row) => row.leagues.length,
-                render: (row) =>
-                  row.leagues.map((league) => `${league.leagueName}#${league.position}`).join(' · '),
-              },
             ]}
             rows={entries.slice(0, 100)}
             empty="No rows"

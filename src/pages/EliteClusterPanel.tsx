@@ -320,7 +320,10 @@ function PlayerChipRow({
           <TeamCrest code={team?.code ?? 0} name={team?.shortName ?? '?'} size={16} />
           <span className="fpl-elite-cluster-card__chip-name">
             {player?.webName ?? `#${row.elementId}`}
-            {team ? <small>{team.shortName}</small> : null}
+            <small>
+              {player?.position ?? '?'}
+              {team ? ` · ${team.shortName}` : ''}
+            </small>
           </span>
         </span>
         <em>{Math.round(row.ownership * 100)}%</em>
@@ -391,7 +394,10 @@ function ClusterDetail({
                       />
                       <TeamCrest code={team?.code ?? 0} name={team?.shortName ?? '?'} size={14} />
                       {player?.webName ?? `#${row.elementId}`}
-                      <small>{row.onXi ? 'XI' : 'BN'}</small>
+                      <small>
+                        {row.onXi ? 'XI' : 'BN'}
+                        {player ? ` · ${player.position}` : ''}
+                      </small>
                     </span>
                   </button>
                   <span>
