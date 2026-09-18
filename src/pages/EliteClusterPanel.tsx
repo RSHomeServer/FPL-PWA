@@ -747,8 +747,8 @@ export function EliteEntryPitch({
       {squad ? (
         <>
           <p className="fpl-explorer__meta">
-            Each card shows latest GW points, next-5 FDR chips, and opponent crests underneath (same size). Green FDR =
-            easier.
+            Each card shows recent GW point chips, next-5 FDR chips, and opponent crests underneath (same size). Green
+            FDR = easier.
           </p>
           <div className="fpl-perfect-pitch-nav">
             <button

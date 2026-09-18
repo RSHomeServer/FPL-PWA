@@ -41,6 +41,7 @@ export function enrichElitePitchPlayer(
     historyTitle: history.length
       ? history.map((row) => `GW${row.gw}: ${row.points}`).join(' · ')
       : undefined,
+    historyChips: history,
     fdrChips,
     points: lastPts,
     pointsUnscored: base.pointsUnscored,

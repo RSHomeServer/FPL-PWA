@@ -307,7 +307,8 @@
 }
 
 .fpl-pitch-card__fdr-chip,
-.fpl-pitch-card__opp {
+.fpl-pitch-card__opp,
+.fpl-pitch-card__pts-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -316,6 +317,23 @@
   flex: 0 0 0.95rem;
   border-radius: 0.15rem;
   overflow: hidden;
+}
+
+.fpl-pitch-card__history-chips {
+  display: flex;
+  justify-content: center;
+  gap: 0.12rem;
+  margin-top: 0.14rem;
+  flex-wrap: nowrap;
+}
+
+.fpl-pitch-card__pts-chip {
+  background: #1e293b;
+  color: #fff;
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0;
 }
 
 .fpl-pitch-card__fdr-chip {

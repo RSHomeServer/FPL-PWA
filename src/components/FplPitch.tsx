@@ -42,6 +42,8 @@ export type PitchPlayer = {
   historyLabel?: string
   /** Tooltip for historyLabel. */
   historyTitle?: string
+  /** Recent gameweek point chips (slim icon row). */
+  historyChips?: readonly { gw: number; points: number }[]
   /** Upcoming fixture difficulty chips. */
   fdrChips?: readonly PitchFdrChip[]
   /** Score breakdown lines when `showDetails` is on. */
@@ -202,6 +204,7 @@ function PitchCard({
   const crestSize = expanded ? 20 : 18
   const hasPoints = player.points != null && Number.isFinite(player.points)
   const fdrChips = player.fdrChips ?? []
+  const historyChips = player.historyChips ?? []
   const chipSize = expanded ? 16 : 14
   const breakdown =
     showDetails && player.scoreLines
@@ -247,10 +250,22 @@ function PitchCard({
       </span>
       <figcaption className="fpl-pitch-card__plate">
         <span className="fpl-pitch-card__name">{player.name}</span>
-        {player.fixture && !hasPoints ? (
+        {player.fixture && !hasPoints && historyChips.length === 0 ? (
           <span className="fpl-pitch-card__fixture">{player.fixture}</span>
         ) : null}
-        {hasPoints ? (
+        {historyChips.length > 0 ? (
+          <span className="fpl-pitch-card__history-chips" title={player.historyTitle ?? 'Recent GW points'}>
+            {historyChips.map((chip) => (
+              <span
+                key={`pts-${chip.gw}`}
+                className="fpl-pitch-card__pts-chip"
+                title={`GW${chip.gw}: ${chip.points} pts`}
+              >
+                {chip.points}
+              </span>
+            ))}
+          </span>
+        ) : hasPoints ? (
           <span
             className="fpl-pitch-card__points"
             title={
