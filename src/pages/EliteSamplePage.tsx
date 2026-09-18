@@ -1,4 +1,4 @@
-import { Button } from '@songara/pwa-base/ui'
+import { Button, Label, Select } from '@songara/pwa-base/ui'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   clusterEliteEntries,
@@ -9,6 +9,15 @@ import {
   eliteGameweekOwnership,
   enrichOwnershipRow,
 } from '../analysis/eliteOwnership'
+import {
+  ELITE_LP_OBJECTIVES,
+  formatEliteLpSummary,
+  solveEliteOwnershipTeam,
+  type EliteLpObjective,
+  type EliteOwnershipLpResult,
+} from '../analysis/eliteOwnershipLp'
+import type { HindsightPlayer } from '../analysis/perfectTeam'
+import { FplPitch, type PitchPlayer } from '../components/FplPitch'
 import { PlayerLabel, TeamLabel } from '../components/FplMedia'
 import { eliteEntriesToDictionary, readAllEliteEntries, readEliteSampleMeta } from '../data/eliteEntryStore'
 import {
@@ -17,6 +26,7 @@ import {
   type EliteSampleProgress,
 } from '../data/eliteTopNSample'
 import { useFplData } from '../data/fplDataContext'
+import { formatGbpFromTenths } from '../data/prices'
 import { teamRowStyle } from '../data/teamColors'
 import type { EliteEntryRecord, EliteSampleMeta } from '../data/types'
 import { ClusterBadge, EliteClusterPanel, EliteEntryPitch } from './EliteClusterPanel'
@@ -33,6 +43,11 @@ export function EliteSamplePage() {
   const [activeGw, setActiveGw] = useState<number | null>(null)
   const [metaOpen, setMetaOpen] = useState(false)
   const [dictOpen, setDictOpen] = useState(false)
+  const [lpObjective, setLpObjective] = useState<EliteLpObjective>('form')
+  const [lpMinOwnership, setLpMinOwnership] = useState(5)
+  const [lpBusy, setLpBusy] = useState(false)
+  const [lpError, setLpError] = useState<string | null>(null)
+  const [lpResult, setLpResult] = useState<EliteOwnershipLpResult | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -101,6 +116,30 @@ export function EliteSamplePage() {
       .join(' · ')
   }
 
+  function changeActiveGw(gw: number) {
+    setActiveGw(gw)
+    setLpResult(null)
+    setLpError(null)
+  }
+
+  async function runEliteLp() {
+    if (!snapshot || activeGw == null || entries.length === 0) return
+    setLpBusy(true)
+    setLpError(null)
+    try {
+      const result = await solveEliteOwnershipTeam(entries, snapshot, activeGw, {
+        objective: lpObjective,
+        minOwnership: lpMinOwnership / 100,
+      })
+      setLpResult(result)
+    } catch (cause) {
+      setLpResult(null)
+      setLpError(cause instanceof Error ? cause.message : 'Elite ownership LP failed')
+    } finally {
+      setLpBusy(false)
+    }
+  }
+
   async function runCollect() {
     setBusy(true)
     setError(null)
@@ -133,6 +172,8 @@ export function EliteSamplePage() {
       setEntries([])
       setSelectedId(null)
       setActiveGw(null)
+      setLpResult(null)
+      setLpError(null)
     } finally {
       setBusy(false)
     }
@@ -210,7 +251,7 @@ export function EliteSamplePage() {
           teamsById={teamsById}
           onSelectEntry={setSelectedId}
           activeGw={activeGw}
-          onActiveGwChange={setActiveGw}
+          onActiveGwChange={changeActiveGw}
         />
       ) : null}
 
@@ -222,6 +263,140 @@ export function EliteSamplePage() {
             week. Elite % is within this sample (not overall FPL). Official Sel% is bootstrap selected_by_percent.
             GW pts / Prev GW pts come from the season performance snapshot.
           </p>
+
+          <div className="fpl-elite-ownership__lp">
+            <h3 className="fpl-elite-ownership__lp-title">LP best 15 from elite ownership</h3>
+            <p className="fpl-explorer__meta">
+              Legal FPL constraints (£100.0m, ≤3 per club, 2/5/5/3). Pool = players at or above the elite ownership floor
+              for this GW. Objective maximises form, last GW points, or season totals (XI + captain bonus).
+            </p>
+            <div className="fpl-explorer__toolbar">
+              <Label className="fpl-explorer__field">
+                Objective
+                <Select
+                  value={lpObjective}
+                  onChange={(event) => setLpObjective(event.target.value as EliteLpObjective)}
+                >
+                  {ELITE_LP_OBJECTIVES.map((row) => (
+                    <option key={row.id} value={row.id} title={row.hint}>
+                      {row.label}
+                    </option>
+                  ))}
+                </Select>
+              </Label>
+              <Label className="fpl-explorer__field">
+                Min elite ownership %
+                <Select
+                  value={String(lpMinOwnership)}
+                  onChange={(event) => setLpMinOwnership(Number(event.target.value))}
+                >
+                  {[0, 5, 10, 15, 20, 25, 30, 40, 50].map((value) => (
+                    <option key={value} value={value}>
+                      {value}%
+                    </option>
+                  ))}
+                </Select>
+              </Label>
+              <Button
+                variant="primary"
+                disabled={lpBusy || !snapshot || activeGw == null}
+                onClick={() => void runEliteLp()}
+              >
+                {lpBusy ? 'Solving…' : 'Solve best 15'}
+              </Button>
+            </div>
+            {lpError ? <ExplorerEmpty title="LP failed" description={lpError} /> : null}
+            {lpResult ? (
+              <div className="fpl-elite-ownership__lp-result">
+                <p className="fpl-explorer__meta">
+                  GW{lpResult.gw} · {lpResult.team.formation} · {formatEliteLpSummary(lpResult)}
+                </p>
+                <FplPitch
+                  formation={lpResult.team.formation}
+                  players={lpResult.team.xi.map((player) =>
+                    hindsightToPitch(player, lpResult.team.captain.code, lpResult.team.viceCaptain.code, false),
+                  )}
+                  bench={lpResult.team.bench.map((player) =>
+                    hindsightToPitch(player, lpResult.team.captain.code, lpResult.team.viceCaptain.code, true),
+                  )}
+                  label={`Elite LP · GW${lpResult.gw} · ${lpResult.team.formation}`}
+                  showCost
+                  compact
+                  expandable
+                />
+                <DataTable
+                  caption="LP squad"
+                  defaultSort={{ id: 'score', direction: 'desc' }}
+                  rowKey={(row) => row.code}
+                  rowStyle={(row) => teamRowStyle({ code: row.teamCode, shortName: row.teamShortName })}
+                  columns={[
+                    {
+                      id: 'player',
+                      label: 'Player',
+                      sortValue: (row) => row.webName,
+                      render: (row) => (
+                        <PlayerLabel
+                          player={{
+                            code: row.code,
+                            webName: row.webName,
+                            firstName: '',
+                            secondName: '',
+                          }}
+                          name={row.webName}
+                        />
+                      ),
+                    },
+                    {
+                      id: 'role',
+                      label: 'Role',
+                      sortValue: (row) => roleOf(row, lpResult),
+                      render: (row) => roleOf(row, lpResult),
+                    },
+                    {
+                      id: 'pos',
+                      label: 'Pos',
+                      sortValue: (row) => row.position,
+                      render: (row) => row.position,
+                    },
+                    {
+                      id: 'team',
+                      label: 'Team',
+                      sortValue: (row) => row.teamShortName,
+                      render: (row) => (
+                        <TeamLabel
+                          team={{ code: row.teamCode, name: row.teamShortName, shortName: row.teamShortName }}
+                        />
+                      ),
+                    },
+                    {
+                      id: 'own',
+                      label: 'Elite %',
+                      sortValue: (row) => lpResult.ownershipByElementId[row.playerId] ?? 0,
+                      render: (row) => {
+                        const own = lpResult.ownershipByElementId[row.playerId]
+                        return own != null ? `${(own * 100).toFixed(1)}%` : '—'
+                      },
+                    },
+                    {
+                      id: 'score',
+                      label: ELITE_LP_OBJECTIVES.find((row) => row.id === lpResult.objective)?.label ?? 'Score',
+                      sortValue: (row) => row.gwPoints,
+                      render: (row) => row.gwPoints.toFixed(1),
+                    },
+                    {
+                      id: 'cost',
+                      label: 'Cost',
+                      sortValue: (row) => row.costTenths,
+                      render: (row) => formatGbpFromTenths(row.costTenths),
+                    },
+                  ]}
+                  rows={lpResult.team.squad}
+                  empty="No squad"
+                />
+              </div>
+            ) : null}
+          </div>
+
           <DataTable
             caption={`Top 30 elite ownership · GW${ownershipBoard.gw}`}
             defaultSort={{ id: 'own', direction: 'desc' }}
@@ -455,4 +630,32 @@ function Collapsible({
       {open ? <div className="fpl-elite-collapse__body">{children}</div> : null}
     </section>
   )
+}
+
+function hindsightToPitch(
+  player: HindsightPlayer,
+  captainCode: number,
+  viceCode: number,
+  onBench: boolean,
+): PitchPlayer {
+  return {
+    id: player.code,
+    name: player.webName,
+    photoCode: player.code,
+    teamCode: player.teamCode,
+    teamShortName: player.teamShortName,
+    position: player.position,
+    captain: player.code === captainCode,
+    viceCaptain: player.code === viceCode,
+    points: player.gwPoints,
+    pointsUnscored: onBench,
+    costLabel: formatGbpFromTenths(player.costTenths),
+  }
+}
+
+function roleOf(player: HindsightPlayer, result: EliteOwnershipLpResult): string {
+  if (player.code === result.team.captain.code) return 'C'
+  if (player.code === result.team.viceCaptain.code) return 'VC'
+  if (result.team.xi.some((row) => row.code === player.code)) return 'XI'
+  return 'BN'
 }

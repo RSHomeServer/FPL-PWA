@@ -1067,6 +1067,25 @@
   gap: var(--space-3, 0.75rem);
 }
 
+.fpl-elite-ownership__lp {
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--fpl-ink) 82%, transparent);
+}
+
+.fpl-elite-ownership__lp-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.fpl-elite-ownership__lp-result {
+  display: grid;
+  gap: var(--space-3, 0.75rem);
+}
+
 .fpl-elite-cluster-card__chip em {
   font-style: normal;
   opacity: 0.8;

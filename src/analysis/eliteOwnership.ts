@@ -22,6 +22,7 @@ export type EliteGwOwnershipBoard = {
 
 /**
  * Rank players by ownership across elite entries that have a stored squad for `gw`.
+ * Pass `topN <= 0` to return every owned player (needed for LP pools).
  */
 export function eliteGameweekOwnership(
   entries: readonly EliteEntryRecord[],
@@ -64,9 +65,12 @@ export function eliteGameweekOwnership(
       captaincy: stats.captainCount / n,
     }))
     .sort((a, b) => b.ownership - a.ownership || b.captaincy - a.captaincy || a.elementId - b.elementId)
-    .slice(0, topN)
 
-  return { gw, sampleSize, rows }
+  return {
+    gw,
+    sampleSize,
+    rows: topN > 0 ? rows.slice(0, topN) : rows,
+  }
 }
 
 /** Sum performance points for a player in a single round (handles multi-fixture blanks). */
