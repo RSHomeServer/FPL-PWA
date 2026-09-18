@@ -20,6 +20,8 @@ import type {
   UserPicksRecord,
   UserProfileRecord,
   UserTransfersRecord,
+  EliteEntryRecord,
+  EliteSampleMeta,
 } from './types'
 import type { PerfectDynamicCacheRecord, PerfectStaticCacheRecord } from './perfectTeamCache'
 
@@ -52,6 +54,8 @@ export type FplCacheDb = ReturnType<typeof createSongaraDb> & {
   userHistory: Table<UserHistoryRecord>
   userTransfers: Table<UserTransfersRecord>
   transferScenarios: Table<TransferScenarioRecord>
+  eliteSampleMeta: Table<EliteSampleMeta>
+  eliteEntries: Table<EliteEntryRecord>
 }
 
 let db: FplCacheDb | null = null
@@ -123,6 +127,13 @@ export function getFplCacheDb(): FplCacheDb {
         version: 7,
         stores: {
           perfectTeamPins: 'id, seasonId',
+        },
+      },
+      {
+        version: 8,
+        stores: {
+          eliteSampleMeta: 'id',
+          eliteEntries: 'entryId, totalPoints',
         },
       },
     ],

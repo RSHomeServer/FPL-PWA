@@ -450,3 +450,64 @@ export type ManagerGameweekState = {
   freeTransferDetail: FreeTransferState
   fetchedAt: number
 }
+
+/** One classic-league appearance for an elite sample entry. */
+export type EliteLeagueMembership = {
+  leagueId: number
+  leagueName: string
+  position: number
+}
+
+/**
+ * Per-GW squad snapshot for clustering features.
+ * Player arrays use official FPL element ids (same as picks API).
+ */
+export type EliteGameweekSquad = {
+  gw: number
+  /** Starting XI element ids (pick positions 1–11). */
+  xi: number[]
+  /** Bench element ids (pick positions 12–15). */
+  bench: number[]
+  captainElementId: number
+  viceCaptainElementId: number
+  /** Chip active on picks for this GW (`bboost`, `3xc`, `wildcard`, …) or null. */
+  activeChip: string | null
+  /** Chip plays recorded on history for this GW (may include timing metadata). */
+  historyChips: string[]
+  points: number | null
+  overallRank: number | null
+}
+
+/**
+ * Merged top-N entry dictionary — one row per unique team id across sampled leagues.
+ */
+export type EliteEntryRecord = {
+  entryId: number
+  entryName: string
+  playerName: string
+  totalPoints: number
+  leagues: EliteLeagueMembership[]
+  gameweeks: EliteGameweekSquad[]
+  fetchedAt: number
+}
+
+export type EliteSampleLeagueMeta = {
+  leagueId: number
+  leagueName: string
+  rankCount: number | null
+  topN: number
+  fetchedEntryCount: number
+}
+
+export type EliteSampleMeta = {
+  id: 'current'
+  seasonId: string
+  topN: number
+  leagueCount: number
+  uniqueEntries: number
+  gameweeks: number[]
+  leagues: EliteSampleLeagueMeta[]
+  fetchedAt: number
+  status: 'idle' | 'ready' | 'error'
+  errorMessage: string | null
+}

@@ -15,6 +15,7 @@ const EXPLORERS = [
   { to: '/gw0-data', label: 'GW0 data', hint: 'Calculations, tables, and controls' },
   { to: '/perfect-team', label: 'Perfect team', hint: 'Hindsight best squads by GW and season' },
   { to: '/season-data', label: 'Season data', hint: 'Validate Vaastav vs FPL API snapshots' },
+  { to: '/elite-sample', label: 'Elite sample', hint: 'Top-N league dictionary for clustering' },
   { to: '/gw0-flags', label: 'GW0 flags', hint: 'Review minutes enums' },
 ] as const
 

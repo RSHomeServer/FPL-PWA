@@ -1,6 +1,7 @@
 import { defineSite, SITE_CAPABILITY } from '@songara/pwa-base'
 import { ComparePage } from './pages/ComparePage'
 import { FixturesPage } from './pages/FixturesPage'
+import { EliteSamplePage } from './pages/EliteSamplePage'
 import { FlagsReviewPage } from './pages/FlagsReviewPage'
 import { GameweekPage } from './pages/GameweekPage'
 import { Gw0SquadPage, Gw0VisualPage } from './pages/Gw0SquadPage'
@@ -35,5 +36,6 @@ export const fplSite = defineSite({
     { path: '/perfect-team/dynamic', component: PerfectTeamPage },
     { path: '/perfect-team', component: PerfectTeamPage },
     { path: '/season-data', component: SeasonDataPage },
+    { path: '/elite-sample', component: EliteSamplePage },
   ],
 })
