@@ -1,0 +1,97 @@
+# Build the FPL production nginx image with a sibling PWA-Base checkout
+# (same layout as local ~/projects). Push to GHCR on the product branch only.
+#
+# Image build uses Vite-only production compile via APP_BUILD_CMD because the
+# repo currently has pre-existing PlayerPosition TypeScript errors that make
+# `npm run build` (`tsc -b && vite build`) fail. That limitation is unrelated
+# to Docker packaging and is not fixed here.
+name: production-image
+
+on:
+  push:
+    branches: [local/fpl-perfect-team-current-controls]
+  pull_request:
+    branches: [local/fpl-perfect-team-current-controls]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: FPL-PWA
+  PWA_BASE_DIR: PWA-Base
+  PWA_BASE_REF: main
+  # Temporary until PlayerPosition tsc errors are fixed in a separate change.
+  APP_BUILD_CMD: PLATFORM_RUNTIME_MODE=production npx vite build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout FPL-PWA
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.APP_DIR }}
+
+      - name: Checkout PWA-Base (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/PWA-Base
+          ref: ${{ env.PWA_BASE_REF }}
+          path: ${{ env.PWA_BASE_DIR }}
+
+      - name: Image name (lowercase for GHCR)
+        id: image
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "name=ghcr.io/${owner}/fpl-pwa" >> "$GITHUB_OUTPUT"
+
+      - name: Sibling-context .dockerignore
+        run: |
+          sed \
+            -e "s/__APP_DIR__/${APP_DIR}/g" \
+            -e "s/__PWA_BASE_DIR__/${PWA_BASE_DIR}/g" \
+            "${PWA_BASE_DIR}/docker/sibling-context.dockerignore" > .dockerignore
+          cat .dockerignore
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/local/fpl-perfect-team-current-controls' && github.event_name != 'pull_request' }}
+            type=sha,prefix=sha-,format=long
+            type=ref,event=branch,enable=${{ github.event_name != 'pull_request' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ env.PWA_BASE_DIR }}/docker/consumer-spa.Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_DIR=${{ env.APP_DIR }}
+            PWA_BASE_DIR=${{ env.PWA_BASE_DIR }}
+            PLATFORM_RUNTIME_MODE=production
+            NGINX_CONF=${{ env.APP_DIR }}/docker/nginx-spa-fpl.conf
+            APP_BUILD_CMD=${{ env.APP_BUILD_CMD }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
