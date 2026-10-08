@@ -1,0 +1,14 @@
+# Used only if someone builds with context = this repo (unsupported for
+# file:../PWA-Base). Preferred builds use the sibling parent context and
+# PWA-Base/docker/sibling-context.dockerignore via docker-build-consumer.mjs.
+
+node_modules
+dist
+.git
+.tmp
+.env
+.env.*
+coverage
+**/*.tsbuildinfo
+.DS_Store
+reference
